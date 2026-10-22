@@ -214,7 +214,7 @@ $('#export').addEventListener('click', function () {
   var blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
   var file; try { file = new File([blob], name, { type: 'application/json' }); } catch (e) {}
   if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-    navigator.share({ files: [file], title: name }).then(function () { say('Sicherung bereit.'); }).catch(function () {});
+    navigator.share({ files: [file] }).then(function () { say('Sicherung bereit.'); }).catch(function () {});
   } else {
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = name;
