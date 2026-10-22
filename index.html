@@ -49,6 +49,12 @@ svg.spark{display:block;width:calc(100% - 28px);height:40px;margin:0 14px 14px}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--pr)}
 .del{all:unset;cursor:pointer;color:var(--mute);font-size:14px;padding:4px 6px;border-radius:4px}
 .del:focus-visible{outline:3px solid var(--plate)}
+.gh{font:800 22px/1.1 "Avenir Next Condensed","Arial Narrow",sans-serif;margin:14px 2px 0}
+.gh span{font:500 16px -apple-system,system-ui,sans-serif;color:var(--mute);margin-left:4px}
+.assign{padding:0 14px 12px}
+.fig{display:block;width:100%;max-width:170px;height:auto;margin:0 auto}
+.figwrap{padding:0 14px 8px}
+#preview:empty{display:none}
 .backup{margin-top:28px;display:grid;gap:10px}
 .backup h2{font:800 22px/1.1 "Avenir Next Condensed","Arial Narrow",sans-serif;margin:0}
 .backup p{margin:0;color:var(--mute);font-size:14px}
@@ -63,10 +69,14 @@ svg.spark{display:block;width:calc(100% - 28px);height:40px;margin:0 14px 14px}
   <p class="sub" id="sub"></p>
 
   <section class="add" aria-label="Neuen Satz erfassen">
+    <label>Muskelgruppe
+      <select id="grp"></select>
+    </label>
     <label>Übung
       <select id="exsel"></select>
       <input id="exnew" placeholder="Name der neuen Übung" autocomplete="off" hidden>
     </label>
+    <div id="preview"></div>
     <div class="row">
       <label>Gewicht (kg)<input id="kg" type="number" inputmode="decimal" step="0.5" min="0"></label>
       <label>Wiederholungen<input id="reps" type="number" inputmode="numeric" step="1" min="1"></label>
@@ -92,6 +102,26 @@ svg.spark{display:block;width:calc(100% - 28px);height:40px;margin:0 14px 14px}
 <script>
 var KEY = 'krafttraining-v1';
 var NEW = '__new';
+var NONE = 'Ohne Gruppe';
+var GROUPS = ['Brust', 'Rücken', 'Schultern', 'Bizeps', 'Trizeps', 'Beine', 'Gesäß', 'Bauch'];
+var CATALOG = {
+  'Brust': ['Bankdrücken', 'Schrägbankdrücken', 'Kurzhantel-Bankdrücken', 'Fliegende', 'Brustpresse', 'Dips'],
+  'Rücken': ['Klimmzüge', 'Latziehen', 'Rudern', 'Kabelrudern', 'Kreuzheben', 'Rückenstrecker'],
+  'Schultern': ['Schulterdrücken', 'Seitheben', 'Frontheben', 'Face Pulls', 'Reverse Fly', 'Arnold Press'],
+  'Bizeps': ['Langhantel-Curls', 'Kurzhantel-Curls', 'Hammer-Curls', 'Scott-Curls', 'Kabel-Curls'],
+  'Trizeps': ['Trizepsdrücken', 'Französisches Drücken', 'Enges Bankdrücken', 'Overhead-Trizepsstrecken', 'Kickbacks'],
+  'Beine': ['Kniebeuge', 'Beinpresse', 'Ausfallschritte', 'Rumänisches Kreuzheben', 'Beinstrecker', 'Beinbeuger', 'Wadenheben'],
+  'Gesäß': ['Hip Thrust', 'Glute Bridge', 'Bulgarische Kniebeuge', 'Kabel-Kickbacks', 'Abduktoren-Maschine'],
+  'Bauch': ['Crunches', 'Cable Crunch', 'Beinheben hängend', 'Russian Twist', 'Bauchrad']
+};
+function catalogGroup(ex) {
+  var l = ex.toLowerCase();
+  for (var i = 0; i < GROUPS.length; i++) {
+    if (CATALOG[GROUPS[i]].some(function (n) { return n.toLowerCase() === l; })) return GROUPS[i];
+  }
+  return '';
+}
+function cleanGrp(g) { return GROUPS.indexOf(g) > -1 ? g : ''; }
 var $ = function (s) { return document.querySelector(s); };
 var today = function () { return new Date().toISOString().slice(0, 10); };
 var entries = [], open = null;
@@ -103,6 +133,51 @@ function fmt(n) { return Number(n).toLocaleString('de-DE', { maximumFractionDigi
 function day(d) { var p = d.split('-'); return p[2] + '.' + p[1] + '.'; }
 function say(t) { $('#msg').textContent = t; }
 
+// ---- Animierte Strichfiguren: je Übung eine Start- und eine Endposition ----
+var ANIM = {"squat": {"label": "Kniebeuge", "bar": true, "decor": [], "a": {"h": [80, 10], "n": [80, 19], "p": [78, 48], "e": [68, 34], "w": [76, 22], "k": [80, 76], "f": [78, 108], "b": [77, 22]}, "b": {"h": [85, 48], "n": [80, 58], "p": [66, 86], "e": [70, 70], "w": [77, 60], "k": [96, 84], "f": [74, 108], "b": [77, 60]}}, "bench": {"label": "Bankdrücken", "bar": true, "decor": [[30, 84, 100, 84], [38, 84, 38, 108], [96, 84, 96, 108]], "a": {"h": [40, 76], "n": [50, 78], "p": [88, 78], "e": [51, 62], "w": [52, 46], "k": [110, 72], "f": [116, 104], "b": [52, 46]}, "b": {"h": [40, 76], "n": [50, 78], "p": [88, 78], "e": [62, 72], "w": [52, 66], "k": [110, 72], "f": [116, 104], "b": [52, 66]}}, "dead": {"label": "Kreuzheben", "bar": true, "decor": [], "a": {"h": [99, 52], "n": [92, 58], "p": [64, 76], "e": [88, 78], "w": [84, 99], "k": [92, 84], "f": [80, 108], "b": [84, 99]}, "b": {"h": [80, 10], "n": [80, 19], "p": [78, 48], "e": [81, 36], "w": [82, 52], "k": [80, 76], "f": [80, 108], "b": [82, 52]}}, "press": {"label": "Schulterdrücken", "bar": true, "decor": [], "a": {"h": [80, 10], "n": [80, 19], "p": [78, 48], "e": [74, 34], "w": [83, 20], "k": [80, 76], "f": [78, 108], "b": [83, 20]}, "b": {"h": [80, 10], "n": [80, 19], "p": [78, 48], "e": [81, 3], "w": [82, -13], "k": [80, 76], "f": [78, 108], "b": [82, -13]}}, "pull": {"label": "Klimmzüge", "bar": false, "decor": [[40, -20, 120, -20], [40, -20, 40, 108], [120, -20, 120, 108]], "a": {"h": [80, 5], "n": [80, 14], "p": [80, 44], "e": [80, -2], "w": [80, -20], "k": [80, 72], "f": [72, 96]}, "b": {"h": [81, -18], "n": [80, -8], "p": [80, 22], "e": [90, -6], "w": [80, -20], "k": [80, 50], "f": [72, 74]}}};
+var ANIM_NAMES = { 'kniebeuge': 'squat', 'bankdrücken': 'bench', 'kreuzheben': 'dead', 'schulterdrücken': 'press', 'klimmzüge': 'pull' };
+function animKey(ex) { return ANIM_NAMES[String(ex || '').toLowerCase()] || ''; }
+function pt(a) { return a[0].toFixed(1) + ' ' + a[1].toFixed(1); }
+function figSvg(key) {
+  var a = ANIM[key], st = 'fill="none" stroke="var(--ink)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"';
+  var ln = 'stroke="var(--line)" stroke-width="3" stroke-linecap="round"';
+  var h = '<svg class="fig" data-fig="' + key + '" viewBox="0 -34 160 154" role="img" aria-label="Animation: ' + a.label + '">';
+  h += '<line x1="10" y1="108" x2="150" y2="108" ' + ln + '/>';
+  a.decor.forEach(function (l) { h += '<line x1="' + l[0] + '" y1="' + l[1] + '" x2="' + l[2] + '" y2="' + l[3] + '" ' + ln + '/>'; });
+  h += '<path class="torso" ' + st + '/><path class="leg" ' + st + '/><path class="arm" ' + st + '/>';
+  h += '<circle class="head" r="7" fill="var(--card)" stroke="var(--ink)" stroke-width="4"/>';
+  if (a.bar) h += '<circle class="bar" r="9" fill="var(--plate)"/>';
+  return h + '</svg>';
+}
+function lerp(p, q, u) { return [p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u]; }
+function setPose(svg, u) {
+  var a = ANIM[svg.dataset.fig], P = {};
+  ['h', 'n', 'p', 'e', 'w', 'k', 'f', 'b'].forEach(function (k) { if (a.a[k]) P[k] = lerp(a.a[k], a.b[k], u); });
+  svg.querySelector('.torso').setAttribute('d', 'M' + pt(P.n) + 'L' + pt(P.p));
+  svg.querySelector('.leg').setAttribute('d', 'M' + pt(P.p) + 'L' + pt(P.k) + 'L' + pt(P.f));
+  svg.querySelector('.arm').setAttribute('d', 'M' + pt(P.n) + 'L' + pt(P.e) + 'L' + pt(P.w));
+  var hd = svg.querySelector('.head'); hd.setAttribute('cx', P.h[0]); hd.setAttribute('cy', P.h[1]);
+  var b = svg.querySelector('.bar'); if (b && P.b) { b.setAttribute('cx', P.b[0]); b.setAttribute('cy', P.b[1]); }
+}
+var raf = null, t0 = performance.now();
+var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+function applyAll(u) { document.querySelectorAll('svg.fig').forEach(function (s) { setPose(s, u); }); }
+function tick(now) {
+  if (!document.querySelector('svg.fig')) { raf = null; return; }
+  var x = 0.5 - 0.5 * Math.cos((now - t0) * 2 * Math.PI / 3200);
+  applyAll(x * x * (3 - 2 * x));
+  raf = requestAnimationFrame(tick);
+}
+function startAnim() {
+  applyAll(0);
+  if (!still && !raf && document.querySelector('svg.fig')) raf = requestAnimationFrame(tick);
+}
+function updatePreview() {
+  var v = $('#exsel').value, key = v === NEW ? '' : animKey(v);
+  $('#preview').innerHTML = key ? figSvg(key) : '';
+  startAnim();
+}
+
 function groups() {
   var map = {};
   entries.forEach(function (e) { (map[e.ex] = map[e.ex] || []).push(e); });
@@ -111,6 +186,8 @@ function groups() {
     var best = -Infinity;
     var marked = asc.map(function (e) { var pr = e.kg > best; best = Math.max(best, e.kg); return { id: e.id, kg: e.kg, reps: e.reps, date: e.date, pr: pr }; });
     var last = marked[marked.length - 1], prev = marked[marked.length - 2];
+    var withG = asc.filter(function (e) { return cleanGrp(e.grp); });
+    var grp = withG.length ? cleanGrp(withG[withG.length - 1].grp) : catalogGroup(ex);
     var rec = marked.slice(-12), kgs = rec.map(function (e) { return e.kg; });
     var min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs);
     var points = rec.length < 2 ? null : rec.map(function (e, i) {
@@ -118,53 +195,81 @@ function groups() {
       var y = max === min ? 20 : 36 - (e.kg - min) / (max - min) * 32;
       return x.toFixed(1) + ',' + y.toFixed(1);
     }).join(' ');
-    return { ex: ex, last: last, pr: best, delta: prev ? last.kg - prev.kg : null, points: points, desc: marked.slice().reverse() };
+    return { ex: ex, grp: grp, last: last, pr: best, delta: prev ? last.kg - prev.kg : null, points: points, desc: marked.slice().reverse() };
   }).sort(function (a, b) { return b.last.date.localeCompare(a.last.date) || b.last.id - a.last.id; });
 }
 
-// Dropdown mit allen bereits eingegebenen Übungen (zuletzt benutzte zuerst)
+function renderGroupSelect(keep) {
+  var h = '';
+  GROUPS.forEach(function (g) { h += '<option value="' + g + '">' + g + '</option>'; });
+  h += '<option value="">' + NONE + '</option>';
+  $('#grp').innerHTML = h;
+  $('#grp').value = keep;
+}
+
+// Dropdown: bereits benutzte Übungen der gewählten Muskelgruppe, darunter Vorschläge
 function renderSelect(keep) {
-  var gs = groups(), sel = $('#exsel');
-  var opts = '';
-  if (gs.length) opts += '<option value="" disabled>Übung wählen</option>';
-  gs.forEach(function (g) { opts += '<option value="' + esc(g.ex) + '">' + esc(g.ex) + '</option>'; });
+  var g = $('#grp').value, sel = $('#exsel'), all = groups();
+  var used = all.filter(function (x) { return x.grp === g; });
+  var seen = {}; all.forEach(function (x) { seen[x.ex.toLowerCase()] = 1; });
+  var sug = (CATALOG[g] || []).filter(function (n) { return !seen[n.toLowerCase()]; });
+  var opts = '<option value="" disabled>Übung wählen</option>';
+  used.forEach(function (x) { opts += '<option value="' + esc(x.ex) + '">' + esc(x.ex) + '</option>'; });
+  if (sug.length) {
+    opts += '<optgroup label="Vorschläge">' + sug.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') + '</optgroup>';
+  }
   opts += '<option value="' + NEW + '">+ Neue Übung</option>';
   sel.innerHTML = opts;
-  var want = keep;
-  var exists = gs.some(function (g) { return g.ex === want; });
-  sel.value = exists || want === NEW ? want : (gs.length ? '' : NEW);
+  var ok = keep === NEW || used.some(function (x) { return x.ex === keep; }) || sug.indexOf(keep) > -1;
+  sel.value = ok ? keep : '';
   syncNew();
 }
 function syncNew() {
   var isNew = $('#exsel').value === NEW;
   $('#exnew').hidden = !isNew;
+  updatePreview();
 }
 function currentEx() {
   var v = $('#exsel').value;
   return v === NEW ? $('#exnew').value.trim() : v;
 }
 
+function card(g) {
+  var isOpen = open === g.ex;
+  var d = g.delta === null ? '' :
+    '<span>Veränderung <b class="' + (g.delta > 0 ? 'up' : g.delta < 0 ? 'down' : '') + '">' + (g.delta > 0 ? '+' : '') + fmt(g.delta) + ' kg</b></span>';
+  var spark = g.points ? '<svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + g.points + '" fill="none" stroke="var(--plate)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>' : '';
+  var key = animKey(g.ex);
+  var fig = isOpen && key ? '<div class="figwrap">' + figSvg(key) + '</div>' : '';
+  var assign = '';
+  if (isOpen) {
+    var o = '<option value=""' + (g.grp === '' ? ' selected' : '') + '>' + NONE + '</option>';
+    GROUPS.forEach(function (n) { o += '<option value="' + n + '"' + (g.grp === n ? ' selected' : '') + '>' + n + '</option>'; });
+    assign = '<label class="assign">Muskelgruppe<select data-assign="' + esc(g.ex) + '">' + o + '</select></label>';
+  }
+  var hist = !isOpen ? '' : '<ul class="hist">' + g.desc.map(function (e) {
+    return '<li><span>' + day(e.date) + '</span><span>' + fmt(e.kg) + ' kg × ' + e.reps + '</span>' +
+      (e.pr ? '<span class="dot" title="Neue Bestleistung"></span>' : '<span></span>') +
+      '<button class="del" data-del="' + e.id + '" aria-label="Satz vom ' + day(e.date) + ' löschen">Löschen</button></li>';
+  }).join('') + '</ul>';
+  return '<article class="card">' +
+    '<button class="head" data-ex="' + esc(g.ex) + '" aria-expanded="' + isOpen + '">' +
+    '<span class="name">' + esc(g.ex) + '</span>' +
+    '<span class="last">Zuletzt ' + fmt(g.last.kg) + ' kg × ' + g.last.reps + ' am ' + day(g.last.date) + '</span>' +
+    '<span class="big">' + fmt(g.last.kg) + '<small>kg</small></span></button>' +
+    '<div class="meta"><span>Bestleistung <b>' + fmt(g.pr) + ' kg</b></span>' + d + '</div>' + spark + fig + assign + hist + '</article>';
+}
+
 function render() {
   $('#sub').textContent = entries.length + (entries.length === 1 ? ' Satz' : ' Sätze') + ' erfasst';
   var gs = groups();
-  if (!gs.length) { $('#list').innerHTML = '<p class="empty">Noch keine Einträge. Gib oben deine erste Übung ein.</p>'; return; }
-  $('#list').innerHTML = gs.map(function (g) {
-    var isOpen = open === g.ex;
-    var d = g.delta === null ? '' :
-      '<span>Veränderung <b class="' + (g.delta > 0 ? 'up' : g.delta < 0 ? 'down' : '') + '">' + (g.delta > 0 ? '+' : '') + fmt(g.delta) + ' kg</b></span>';
-    var spark = g.points ? '<svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + g.points + '" fill="none" stroke="var(--plate)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>' : '';
-    var hist = !isOpen ? '' : '<ul class="hist">' + g.desc.map(function (e) {
-      return '<li><span>' + day(e.date) + '</span><span>' + fmt(e.kg) + ' kg × ' + e.reps + '</span>' +
-        (e.pr ? '<span class="dot" title="Neue Bestleistung"></span>' : '<span></span>') +
-        '<button class="del" data-del="' + e.id + '" aria-label="Satz vom ' + day(e.date) + ' löschen">Löschen</button></li>';
-    }).join('') + '</ul>';
-    return '<article class="card">' +
-      '<button class="head" data-ex="' + esc(g.ex) + '" aria-expanded="' + isOpen + '">' +
-      '<span class="name">' + esc(g.ex) + '</span>' +
-      '<span class="last">Zuletzt ' + fmt(g.last.kg) + ' kg × ' + g.last.reps + ' am ' + day(g.last.date) + '</span>' +
-      '<span class="big">' + fmt(g.last.kg) + '<small>kg</small></span></button>' +
-      '<div class="meta"><span>Bestleistung <b>' + fmt(g.pr) + ' kg</b></span>' + d + '</div>' + spark + hist + '</article>';
+  if (!gs.length) { $('#list').innerHTML = '<p class="empty">Noch keine Einträge. Wähle oben eine Muskelgruppe und eine Übung.</p>'; return; }
+  $('#list').innerHTML = GROUPS.concat(['']).map(function (grp) {
+    var items = gs.filter(function (x) { return x.grp === grp; });
+    if (!items.length) return '';
+    return '<h2 class="gh">' + (grp || NONE) + '<span>' + items.length + '</span></h2>' + items.map(card).join('');
   }).join('');
+  startAnim();
 }
 
 function valid() {
@@ -180,6 +285,7 @@ function prefill() {
   else { $('#kg').value = ''; $('#reps').value = ''; }
 }
 
+$('#grp').addEventListener('change', function () { renderSelect(''); prefill(); check(); });
 $('#exsel').addEventListener('change', function () { syncNew(); prefill(); if (!$('#exnew').hidden) $('#exnew').focus(); check(); });
 ['#exnew', '#kg', '#reps', '#date'].forEach(function (s) { $(s).addEventListener('input', check); });
 
@@ -188,10 +294,12 @@ $('#save').addEventListener('click', function () {
   var ex = currentEx();
   // Gleicher Name in anderer Schreibweise? Dann vorhandene Übung verwenden.
   var match = groups().filter(function (g) { return g.ex.toLowerCase() === ex.toLowerCase(); })[0];
-  if (match) ex = match.ex;
-  entries.push({ id: Date.now(), ex: ex, kg: Number($('#kg').value), reps: Number($('#reps').value), date: $('#date').value });
+  var grp = $('#grp').value;
+  if (match) { ex = match.ex; grp = match.grp; }
+  entries.push({ id: Date.now(), ex: ex, grp: grp, kg: Number($('#kg').value), reps: Number($('#reps').value), date: $('#date').value });
   save(); open = ex;
   $('#exnew').value = '';
+  $('#grp').value = grp;
   renderSelect(ex);        // Übung bleibt ausgewählt, Werte bleiben für den nächsten Satz stehen
   $('#date').value = today();
   check(); render();
@@ -206,6 +314,14 @@ $('#list').addEventListener('click', function (ev) {
   }
   var head = ev.target.closest('[data-ex]');
   if (head) { open = open === head.dataset.ex ? null : head.dataset.ex; render(); }
+});
+
+$('#list').addEventListener('change', function (ev) {
+  var sel = ev.target.closest('[data-assign]');
+  if (!sel) return;
+  var ex = sel.dataset.assign, v = sel.value;
+  entries.forEach(function (e) { if (e.ex === ex) e.grp = v; });
+  save(); renderSelect($('#exsel').value); render(); check();
 });
 
 // Sichern: bevorzugt über das iOS-Teilen-Menü (z. B. "In Dateien sichern"), sonst als Download
@@ -234,7 +350,7 @@ $('#file').addEventListener('change', function () {
       var added = 0;
       data.forEach(function (e) {
         if (e && typeof e.ex === 'string' && isFinite(e.kg) && isFinite(e.reps) && typeof e.date === 'string' && !ids[e.id]) {
-          entries.push({ id: e.id || Date.now() + added, ex: e.ex, kg: Number(e.kg), reps: Number(e.reps), date: e.date });
+          entries.push({ id: e.id || Date.now() + added, ex: e.ex, grp: cleanGrp(e.grp), kg: Number(e.kg), reps: Number(e.reps), date: e.date });
           ids[e.id] = 1; added++;
         }
       });
@@ -251,6 +367,8 @@ if ('serviceWorker' in navigator) {
 }
 
 $('#date').value = today();
+var first = groups()[0];
+renderGroupSelect(first ? first.grp : GROUPS[0]);
 renderSelect('');
 render();
 check();
