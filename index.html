@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Krafttraining-Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kraft">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1f5fbf">
+<style>
+:root{--bg:#e9ecef;--card:#f7f8f9;--ink:#1a1e23;--mute:#5d6670;--line:#cfd5db;--plate:#1f5fbf;--pr:#d9a400;--onplate:#fff;--bad:#b3261e;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#14171a;--card:#1d2126;--ink:#eceff2;--mute:#9aa3ad;--line:#30363d;--plate:#5b9bff;--pr:#f0be2a;--onplate:#0d1b33;--bad:#ff8a80}}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:500 16px/1.45 -apple-system,"Helvetica Neue",system-ui,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+h1{font:800 38px/1 "Avenir Next Condensed","Arial Narrow",Impact,sans-serif;margin:8px 0 4px}
+.sub{margin:0 0 20px;color:var(--mute)}
+.add{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:12px}
+label{display:grid;gap:4px;font-size:14px;color:var(--mute);min-width:0}
+input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;width:100%;min-width:0}
+input[hidden]{display:none}
+select{appearance:auto}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--plate);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row label:last-child{grid-column:1/-1}
+.primary{font:700 18px "Avenir Next Condensed","Arial Narrow",sans-serif;background:var(--plate);color:var(--onplate);border:0;border-radius:6px;padding:12px;cursor:pointer}
+.primary:disabled{opacity:.45;cursor:not-allowed}
+.empty{color:var(--mute);margin:28px 4px}
+.list{display:grid;gap:12px;margin-top:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.head{all:unset;box-sizing:border-box;display:grid;grid-template-columns:1fr auto;gap:2px 12px;width:100%;padding:14px;cursor:pointer}
+.head:focus-visible{outline:3px solid var(--plate);outline-offset:-3px}
+.name{font:800 24px/1.1 "Avenir Next Condensed","Arial Narrow",sans-serif}
+.last{color:var(--mute);font-size:14px}
+.big{grid-row:1/3;grid-column:2;text-align:right;font:800 52px/1 "Avenir Next Condensed","Arial Narrow",sans-serif;color:var(--plate)}
+.big small{font-size:18px;color:var(--mute);margin-left:3px}
+.meta{display:flex;gap:16px;padding:0 14px 10px;font-size:14px;color:var(--mute)}
+.meta b{color:var(--ink)}
+.up{color:var(--plate)}.down{color:var(--bad)}
+svg.spark{display:block;width:calc(100% - 28px);height:40px;margin:0 14px 14px}
+.hist{border-top:1px solid var(--line);padding:6px 14px 10px;margin:0;list-style:none}
+.hist li{display:grid;grid-template-columns:56px 1fr 14px auto;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.hist li:last-child{border-bottom:0}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--pr)}
+.del{all:unset;cursor:pointer;color:var(--mute);font-size:14px;padding:4px 6px;border-radius:4px}
+.del:focus-visible{outline:3px solid var(--plate)}
+.backup{margin-top:28px;display:grid;gap:10px}
+.backup h2{font:800 22px/1.1 "Avenir Next Condensed","Arial Narrow",sans-serif;margin:0}
+.backup p{margin:0;color:var(--mute);font-size:14px}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sec{font:600 16px -apple-system,system-ui,sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:11px;cursor:pointer}
+#msg{min-height:1.4em;color:var(--plate);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Krafttraining</h1>
+  <p class="sub" id="sub"></p>
+
+  <section class="add" aria-label="Neuen Satz erfassen">
+    <label>Übung
+      <select id="exsel"></select>
+      <input id="exnew" placeholder="Name der neuen Übung" autocomplete="off" hidden>
+    </label>
+    <div class="row">
+      <label>Gewicht (kg)<input id="kg" type="number" inputmode="decimal" step="0.5" min="0"></label>
+      <label>Wiederholungen<input id="reps" type="number" inputmode="numeric" step="1" min="1"></label>
+      <label>Datum<input id="date" type="date"></label>
+    </div>
+    <button class="primary" id="save" disabled>Satz speichern</button>
+  </section>
+
+  <div id="list" class="list"></div>
+
+  <section class="backup" aria-label="Datensicherung">
+    <h2>Datensicherung</h2>
+    <p>Deine Daten liegen nur auf diesem Gerät. Sichere sie ab und zu als Datei.</p>
+    <div class="btns">
+      <button class="sec" id="export">Daten sichern</button>
+      <button class="sec" id="import">Daten laden</button>
+    </div>
+    <input id="file" type="file" accept="application/json,.json" hidden>
+    <div id="msg" role="status"></div>
+  </section>
+</div>
+
+<script>
+var KEY = 'krafttraining-v1';
+var NEW = '__new';
+var $ = function (s) { return document.querySelector(s); };
+var today = function () { return new Date().toISOString().slice(0, 10); };
+var entries = [], open = null;
+try { var r = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(r)) entries = r; } catch (e) {}
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch (e) {} }
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function fmt(n) { return Number(n).toLocaleString('de-DE', { maximumFractionDigits: 2 }); }
+function day(d) { var p = d.split('-'); return p[2] + '.' + p[1] + '.'; }
+function say(t) { $('#msg').textContent = t; }
+
+function groups() {
+  var map = {};
+  entries.forEach(function (e) { (map[e.ex] = map[e.ex] || []).push(e); });
+  return Object.keys(map).map(function (ex) {
+    var asc = map[ex].slice().sort(function (a, b) { return a.date.localeCompare(b.date) || a.id - b.id; });
+    var best = -Infinity;
+    var marked = asc.map(function (e) { var pr = e.kg > best; best = Math.max(best, e.kg); return { id: e.id, kg: e.kg, reps: e.reps, date: e.date, pr: pr }; });
+    var last = marked[marked.length - 1], prev = marked[marked.length - 2];
+    var rec = marked.slice(-12), kgs = rec.map(function (e) { return e.kg; });
+    var min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs);
+    var points = rec.length < 2 ? null : rec.map(function (e, i) {
+      var x = i / (rec.length - 1) * 200;
+      var y = max === min ? 20 : 36 - (e.kg - min) / (max - min) * 32;
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    return { ex: ex, last: last, pr: best, delta: prev ? last.kg - prev.kg : null, points: points, desc: marked.slice().reverse() };
+  }).sort(function (a, b) { return b.last.date.localeCompare(a.last.date) || b.last.id - a.last.id; });
+}
+
+// Dropdown mit allen bereits eingegebenen Übungen (zuletzt benutzte zuerst)
+function renderSelect(keep) {
+  var gs = groups(), sel = $('#exsel');
+  var opts = '';
+  if (gs.length) opts += '<option value="" disabled>Übung wählen</option>';
+  gs.forEach(function (g) { opts += '<option value="' + esc(g.ex) + '">' + esc(g.ex) + '</option>'; });
+  opts += '<option value="' + NEW + '">+ Neue Übung</option>';
+  sel.innerHTML = opts;
+  var want = keep;
+  var exists = gs.some(function (g) { return g.ex === want; });
+  sel.value = exists || want === NEW ? want : (gs.length ? '' : NEW);
+  syncNew();
+}
+function syncNew() {
+  var isNew = $('#exsel').value === NEW;
+  $('#exnew').hidden = !isNew;
+}
+function currentEx() {
+  var v = $('#exsel').value;
+  return v === NEW ? $('#exnew').value.trim() : v;
+}
+
+function render() {
+  $('#sub').textContent = entries.length + (entries.length === 1 ? ' Satz' : ' Sätze') + ' erfasst';
+  var gs = groups();
+  if (!gs.length) { $('#list').innerHTML = '<p class="empty">Noch keine Einträge. Gib oben deine erste Übung ein.</p>'; return; }
+  $('#list').innerHTML = gs.map(function (g) {
+    var isOpen = open === g.ex;
+    var d = g.delta === null ? '' :
+      '<span>Veränderung <b class="' + (g.delta > 0 ? 'up' : g.delta < 0 ? 'down' : '') + '">' + (g.delta > 0 ? '+' : '') + fmt(g.delta) + ' kg</b></span>';
+    var spark = g.points ? '<svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + g.points + '" fill="none" stroke="var(--plate)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>' : '';
+    var hist = !isOpen ? '' : '<ul class="hist">' + g.desc.map(function (e) {
+      return '<li><span>' + day(e.date) + '</span><span>' + fmt(e.kg) + ' kg × ' + e.reps + '</span>' +
+        (e.pr ? '<span class="dot" title="Neue Bestleistung"></span>' : '<span></span>') +
+        '<button class="del" data-del="' + e.id + '" aria-label="Satz vom ' + day(e.date) + ' löschen">Löschen</button></li>';
+    }).join('') + '</ul>';
+    return '<article class="card">' +
+      '<button class="head" data-ex="' + esc(g.ex) + '" aria-expanded="' + isOpen + '">' +
+      '<span class="name">' + esc(g.ex) + '</span>' +
+      '<span class="last">Zuletzt ' + fmt(g.last.kg) + ' kg × ' + g.last.reps + ' am ' + day(g.last.date) + '</span>' +
+      '<span class="big">' + fmt(g.last.kg) + '<small>kg</small></span></button>' +
+      '<div class="meta"><span>Bestleistung <b>' + fmt(g.pr) + ' kg</b></span>' + d + '</div>' + spark + hist + '</article>';
+  }).join('');
+}
+
+function valid() {
+  var kg = $('#kg').value, reps = $('#reps').value;
+  return currentEx() && kg !== '' && Number(kg) >= 0 && Number(reps) >= 1 && $('#date').value;
+}
+function check() { $('#save').disabled = !valid(); }
+
+function prefill() {
+  var ex = $('#exsel').value;
+  var g = groups().filter(function (x) { return x.ex === ex; })[0];
+  if (g) { $('#kg').value = g.last.kg; $('#reps').value = g.last.reps; }
+  else { $('#kg').value = ''; $('#reps').value = ''; }
+}
+
+$('#exsel').addEventListener('change', function () { syncNew(); prefill(); if (!$('#exnew').hidden) $('#exnew').focus(); check(); });
+['#exnew', '#kg', '#reps', '#date'].forEach(function (s) { $(s).addEventListener('input', check); });
+
+$('#save').addEventListener('click', function () {
+  if (!valid()) return;
+  var ex = currentEx();
+  // Gleicher Name in anderer Schreibweise? Dann vorhandene Übung verwenden.
+  var match = groups().filter(function (g) { return g.ex.toLowerCase() === ex.toLowerCase(); })[0];
+  if (match) ex = match.ex;
+  entries.push({ id: Date.now(), ex: ex, kg: Number($('#kg').value), reps: Number($('#reps').value), date: $('#date').value });
+  save(); open = ex;
+  $('#exnew').value = '';
+  renderSelect(ex);        // Übung bleibt ausgewählt, Werte bleiben für den nächsten Satz stehen
+  $('#date').value = today();
+  check(); render();
+});
+
+$('#list').addEventListener('click', function (ev) {
+  var del = ev.target.closest('[data-del]');
+  if (del) {
+    var id = Number(del.dataset.del);
+    entries = entries.filter(function (e) { return e.id !== id; });
+    save(); renderSelect($('#exsel').value); render(); check(); return;
+  }
+  var head = ev.target.closest('[data-ex]');
+  if (head) { open = open === head.dataset.ex ? null : head.dataset.ex; render(); }
+});
+
+// Sichern: bevorzugt über das iOS-Teilen-Menü (z. B. "In Dateien sichern"), sonst als Download
+$('#export').addEventListener('click', function () {
+  var name = 'krafttraining-' + today() + '.json';
+  var blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
+  var file; try { file = new File([blob], name, { type: 'application/json' }); } catch (e) {}
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: name }).then(function () { say('Sicherung bereit.'); }).catch(function () {});
+  } else {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    say('Sicherung heruntergeladen.');
+  }
+});
+$('#import').addEventListener('click', function () { $('#file').click(); });
+$('#file').addEventListener('change', function () {
+  var f = this.files[0]; if (!f) return;
+  var input = this, rd = new FileReader();
+  rd.onload = function () {
+    try {
+      var data = JSON.parse(rd.result);
+      if (!Array.isArray(data)) throw 0;
+      var ids = {}; entries.forEach(function (e) { ids[e.id] = 1; });
+      var added = 0;
+      data.forEach(function (e) {
+        if (e && typeof e.ex === 'string' && isFinite(e.kg) && isFinite(e.reps) && typeof e.date === 'string' && !ids[e.id]) {
+          entries.push({ id: e.id || Date.now() + added, ex: e.ex, kg: Number(e.kg), reps: Number(e.reps), date: e.date });
+          ids[e.id] = 1; added++;
+        }
+      });
+      save(); renderSelect($('#exsel').value); render(); check();
+      say(added + (added === 1 ? ' Satz' : ' Sätze') + ' geladen.');
+    } catch (e) { say('Die Datei konnte nicht gelesen werden. Wähle eine Sicherung aus diesem Tracker.'); }
+    input.value = '';
+  };
+  rd.readAsText(f);
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+
+$('#date').value = today();
+renderSelect('');
+render();
+check();
+</script>
+</body>
+</html>
