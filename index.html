@@ -115,7 +115,7 @@ input,select{min-height:48px}
 .todayplan{background:var(--card);border:1px solid var(--plate);border-radius:10px;padding:12px 14px;margin-bottom:12px}
 .pl.free{background:var(--line);color:var(--ink)}
 #tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-#tabs button{all:unset;box-sizing:border-box;display:grid;gap:2px;align-content:center;min-height:56px;text-align:center;font-size:11px;font-weight:600;color:var(--mute);cursor:pointer}
+#tabs button{all:unset;box-sizing:border-box;display:grid;gap:2px;align-content:center;min-height:56px;text-align:center;font-size:10.5px;font-weight:600;color:var(--mute);cursor:pointer}
 #tabs button.on{color:var(--plate)}
 #tabs button:focus-visible{outline:3px solid var(--plate);outline-offset:-3px}
 #tabs .ic{font-size:21px;line-height:1}
@@ -159,7 +159,6 @@ body[data-t="train"] #todaybox:empty{display:none}
     <div id="plansbox" style="display:grid;gap:12px"></div>
   </section>
 
-  <button class="sec" id="gomanage" data-tab="list" style="width:100%;margin-bottom:12px">Übungen verwalten</button>
   <div id="list" class="list" data-tab="list"></div>
 
   <section class="backup" data-tab="stats" aria-label="Auswertung">
@@ -194,7 +193,7 @@ body[data-t="train"] #todaybox:empty{display:none}
   <button data-go="plans"><span class="ic">📅</span>Pläne</button>
   <button data-go="list"><span class="ic">📋</span>Übungen</button>
   <button data-go="stats"><span class="ic">📈</span>Auswertung</button>
-  <button data-go="data"><span class="ic">💾</span>Daten</button>
+  <button data-go="data"><span class="ic">⚙️</span>Einstellungen</button>
 </nav>
 
 <div id="timer" hidden role="timer"><span>Pause</span><b id="tleft">1:30</b><button id="tadd">+15 s</button><button id="tstop">Stopp</button></div>
@@ -657,7 +656,7 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '11';
+var VERSION = '12';
 function grpOpts(cur) {
   return GROUPS.map(function (g) { return '<option value="' + g + '"' + (g === cur ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
     '<option value=""' + (cur === '' ? ' selected' : '') + '>' + NONE + '</option>';
@@ -712,7 +711,6 @@ $('#managebox').addEventListener('change', function (ev) {
   customs.forEach(function (c) { if (c.ex === ex) c.grp = v; });
   save(); saveCustoms(); refreshAll();
 });
-$('#gomanage').addEventListener('click', function () { go('data'); $('#managebox').scrollIntoView(); });
 $('#ver').textContent = 'App-Version ' + VERSION;
 function renderPlans() {
   var box = $('#plansbox');
