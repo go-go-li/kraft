@@ -55,6 +55,18 @@ svg.spark{display:block;width:calc(100% - 28px);height:40px;margin:0 14px 14px}
 .fig{display:block;width:100%;max-width:170px;height:auto;margin:0 auto}
 .figwrap{padding:0 14px 8px}
 #preview:empty{display:none}
+.wrap{padding-bottom:96px}
+.meta{flex-wrap:wrap;align-items:center}
+.mini{font:600 14px -apple-system,system-ui,sans-serif;background:transparent;color:var(--plate);border:1px solid var(--plate);border-radius:6px;padding:4px 10px;cursor:pointer}
+.meta .mini{margin-left:auto}
+.hist small{display:block;color:var(--mute)}
+.del+.del{margin-left:6px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#pout{color:var(--plate);font-weight:600}
+#timer{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));max-width:536px;margin:0 auto;display:flex;align-items:center;gap:10px;background:var(--plate);color:var(--onplate);border-radius:10px;padding:10px 14px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+#timer[hidden]{display:none}
+#timer b{font:800 28px "Avenir Next Condensed","Arial Narrow",sans-serif;margin-right:auto}
+#timer button{font:600 14px -apple-system,system-ui,sans-serif;background:transparent;color:var(--onplate);border:1px solid var(--onplate);border-radius:6px;padding:5px 10px;cursor:pointer}
 .backup{margin-top:28px;display:grid;gap:10px}
 .backup h2{font:800 22px/1.1 "Avenir Next Condensed","Arial Narrow",sans-serif;margin:0}
 .backup p{margin:0;color:var(--mute);font-size:14px}
@@ -82,10 +94,17 @@ svg.spark{display:block;width:calc(100% - 28px);height:40px;margin:0 14px 14px}
       <label>Wiederholungen<input id="reps" type="number" inputmode="numeric" step="1" min="1"></label>
       <label>Datum<input id="date" type="date"></label>
     </div>
+    <label>Notiz (optional)<input id="note" placeholder="z. B. letzter Satz schwer" autocomplete="off"></label>
     <button class="primary" id="save" disabled>Satz speichern</button>
   </section>
 
   <div id="list" class="list"></div>
+
+  <section class="backup" aria-label="Hantelscheiben">
+    <h2>Hantelscheiben</h2>
+    <div class="row2"><label>Zielgewicht (kg)<input id="pt" inputmode="decimal"></label><label>Stange (kg)<input id="pb" inputmode="decimal" value="20"></label></div>
+    <p id="pout"></p>
+  </section>
 
   <section class="backup" aria-label="Datensicherung">
     <h2>Datensicherung</h2>
@@ -93,11 +112,14 @@ svg.spark{display:block;width:calc(100% - 28px);height:40px;margin:0 14px 14px}
     <div class="btns">
       <button class="sec" id="export">Daten sichern</button>
       <button class="sec" id="import">Daten laden</button>
+      <button class="sec" id="csv">CSV exportieren</button>
     </div>
     <input id="file" type="file" accept="application/json,.json" hidden>
     <div id="msg" role="status"></div>
   </section>
 </div>
+
+<div id="timer" hidden role="timer"><span>Pause</span><b id="tleft">1:30</b><button id="tadd">+15 s</button><button id="tstop">Stopp</button></div>
 
 <script>
 var KEY = 'krafttraining-v1';
@@ -184,8 +206,9 @@ function groups() {
   return Object.keys(map).map(function (ex) {
     var asc = map[ex].slice().sort(function (a, b) { return a.date.localeCompare(b.date) || a.id - b.id; });
     var best = -Infinity;
-    var marked = asc.map(function (e) { var pr = e.kg > best; best = Math.max(best, e.kg); return { id: e.id, kg: e.kg, reps: e.reps, date: e.date, pr: pr }; });
+    var marked = asc.map(function (e) { var pr = e.kg > best; best = Math.max(best, e.kg); return { id: e.id, kg: e.kg, reps: e.reps, date: e.date, note: e.note || '', pr: pr }; });
     var last = marked[marked.length - 1], prev = marked[marked.length - 2];
+    var e1 = Math.max.apply(null, marked.map(function (e) { return e.reps === 1 ? e.kg : e.kg * (1 + e.reps / 30); }));
     var withG = asc.filter(function (e) { return cleanGrp(e.grp); });
     var grp = withG.length ? cleanGrp(withG[withG.length - 1].grp) : catalogGroup(ex);
     var rec = marked.slice(-12), kgs = rec.map(function (e) { return e.kg; });
@@ -195,7 +218,7 @@ function groups() {
       var y = max === min ? 20 : 36 - (e.kg - min) / (max - min) * 32;
       return x.toFixed(1) + ',' + y.toFixed(1);
     }).join(' ');
-    return { ex: ex, grp: grp, last: last, pr: best, delta: prev ? last.kg - prev.kg : null, points: points, desc: marked.slice().reverse() };
+    return { ex: ex, grp: grp, e1: e1, last: last, pr: best, delta: prev ? last.kg - prev.kg : null, points: points, desc: marked.slice().reverse() };
   }).sort(function (a, b) { return b.last.date.localeCompare(a.last.date) || b.last.id - a.last.id; });
 }
 
@@ -241,23 +264,24 @@ function card(g) {
   var spark = g.points ? '<svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + g.points + '" fill="none" stroke="var(--plate)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>' : '';
   var key = animKey(g.ex);
   var fig = isOpen && key ? '<div class="figwrap">' + figSvg(key) + '</div>' : '';
+  var next = g.last.reps >= 8 ? fmt(g.last.kg + 2.5) + ' kg' : fmt(g.last.kg) + ' kg × ' + (g.last.reps + 1);
   var assign = '';
   if (isOpen) {
     var o = '<option value=""' + (g.grp === '' ? ' selected' : '') + '>' + NONE + '</option>';
     GROUPS.forEach(function (n) { o += '<option value="' + n + '"' + (g.grp === n ? ' selected' : '') + '>' + n + '</option>'; });
-    assign = '<label class="assign">Muskelgruppe<select data-assign="' + esc(g.ex) + '">' + o + '</select></label>';
+    assign = '<label class="assign">Muskelgruppe<select data-assign="' + esc(g.ex) + '">' + o + '</select></label><div class="assign"><button class="mini" data-rename="' + esc(g.ex) + '">Übung umbenennen</button></div>';
   }
   var hist = !isOpen ? '' : '<ul class="hist">' + g.desc.map(function (e) {
-    return '<li><span>' + day(e.date) + '</span><span>' + fmt(e.kg) + ' kg × ' + e.reps + '</span>' +
+    return '<li><span>' + day(e.date) + '</span><span>' + fmt(e.kg) + ' kg × ' + e.reps + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span>' +
       (e.pr ? '<span class="dot" title="Neue Bestleistung"></span>' : '<span></span>') +
-      '<button class="del" data-del="' + e.id + '" aria-label="Satz vom ' + day(e.date) + ' löschen">Löschen</button></li>';
+      '<span><button class="del" data-edit="' + e.id + '">Ändern</button><button class="del" data-del="' + e.id + '" aria-label="Satz vom ' + day(e.date) + ' löschen">Löschen</button></span></li>';
   }).join('') + '</ul>';
   return '<article class="card">' +
     '<button class="head" data-ex="' + esc(g.ex) + '" aria-expanded="' + isOpen + '">' +
     '<span class="name">' + esc(g.ex) + '</span>' +
     '<span class="last">Zuletzt ' + fmt(g.last.kg) + ' kg × ' + g.last.reps + ' am ' + day(g.last.date) + '</span>' +
     '<span class="big">' + fmt(g.last.kg) + '<small>kg</small></span></button>' +
-    '<div class="meta"><span>Bestleistung <b>' + fmt(g.pr) + ' kg</b></span>' + d + '</div>' + spark + fig + assign + hist + '</article>';
+    '<div class="meta"><span>Bestleistung <b>' + fmt(g.pr) + ' kg</b></span><span>Geschätztes Max <b>' + fmt(Math.round(g.e1 * 2) / 2) + ' kg</b></span>' + d + '<span>Nächstes Mal <b>' + next + '</b></span><button class="mini" data-again="' + esc(g.ex) + '">Gleicher Satz</button></div>' + spark + fig + assign + hist + '</article>';
 }
 
 function render() {
@@ -296,8 +320,9 @@ $('#save').addEventListener('click', function () {
   var match = groups().filter(function (g) { return g.ex.toLowerCase() === ex.toLowerCase(); })[0];
   var grp = $('#grp').value;
   if (match) { ex = match.ex; grp = match.grp; }
-  entries.push({ id: Date.now(), ex: ex, grp: grp, kg: Number($('#kg').value), reps: Number($('#reps').value), date: $('#date').value });
-  save(); open = ex;
+  entries.push({ id: Date.now(), ex: ex, grp: grp, note: $('#note').value.trim(), kg: Number($('#kg').value), reps: Number($('#reps').value), date: $('#date').value });
+  save(); open = ex; startRest();
+  $('#note').value = '';
   $('#exnew').value = '';
   $('#grp').value = grp;
   renderSelect(ex);        // Übung bleibt ausgewählt, Werte bleiben für den nächsten Satz stehen
@@ -305,7 +330,33 @@ $('#save').addEventListener('click', function () {
   check(); render();
 });
 
+function rowAction(t) {
+  if (t.dataset.again) {
+    var g = groups().filter(function (x) { return x.ex === t.dataset.again; })[0];
+    if (g) { entries.push({ id: Date.now(), ex: g.ex, grp: g.grp, kg: g.last.kg, reps: g.last.reps, note: '', date: today() }); startRest(); }
+  } else if (t.dataset.edit) {
+    var id = Number(t.dataset.edit), e = entries.filter(function (x) { return x.id === id; })[0];
+    if (!e) return;
+    var kg = prompt('Gewicht (kg)', e.kg); if (kg === null) return;
+    var reps = prompt('Wiederholungen', e.reps); if (reps === null) return;
+    var note = prompt('Notiz', e.note || ''); if (note === null) return;
+    kg = Number(String(kg).replace(',', '.')); reps = Number(reps);
+    if (!(kg >= 0) || !(reps >= 1)) return;
+    e.kg = kg; e.reps = reps; e.note = note.trim();
+  } else if (t.dataset.rename) {
+    var old = t.dataset.rename, nn = prompt('Neuer Name', old);
+    if (!nn || !nn.trim()) return;
+    nn = nn.trim();
+    var m = groups().filter(function (x) { return x.ex.toLowerCase() === nn.toLowerCase() && x.ex !== old; })[0];
+    if (m) nn = m.ex;
+    entries.forEach(function (x) { if (x.ex === old) x.ex = nn; });
+    if (open === old) open = nn;
+  }
+  save(); renderSelect($('#exsel').value); render(); check();
+}
 $('#list').addEventListener('click', function (ev) {
+  var t = ev.target.closest('[data-edit],[data-rename],[data-again]');
+  if (t) { rowAction(t); return; }
   var del = ev.target.closest('[data-del]');
   if (del) {
     var id = Number(del.dataset.del);
@@ -350,7 +401,7 @@ $('#file').addEventListener('change', function () {
       var added = 0;
       data.forEach(function (e) {
         if (e && typeof e.ex === 'string' && isFinite(e.kg) && isFinite(e.reps) && typeof e.date === 'string' && !ids[e.id]) {
-          entries.push({ id: e.id || Date.now() + added, ex: e.ex, grp: cleanGrp(e.grp), kg: Number(e.kg), reps: Number(e.reps), date: e.date });
+          entries.push({ id: e.id || Date.now() + added, ex: e.ex, grp: cleanGrp(e.grp), note: String(e.note || ''), kg: Number(e.kg), reps: Number(e.reps), date: e.date });
           ids[e.id] = 1; added++;
         }
       });
@@ -360,6 +411,52 @@ $('#file').addEventListener('change', function () {
     input.value = '';
   };
   rd.readAsText(f);
+});
+
+var REST = 90, restEnd = 0, restTimer = null, actx = null;
+function beep() {
+  try { var o = actx.createOscillator(); o.connect(actx.destination); o.frequency.value = 880; o.start(); o.stop(actx.currentTime + 0.4); } catch (e) {}
+  try { if (navigator.vibrate) navigator.vibrate(300); } catch (e) {}
+}
+function showRest() {
+  var left = Math.max(0, Math.ceil((restEnd - Date.now()) / 1000));
+  $('#tleft').textContent = left ? Math.floor(left / 60) + ':' + ('0' + left % 60).slice(-2) : 'Los!';
+  if (!left) { clearInterval(restTimer); restTimer = null; beep(); setTimeout(function () { if (!restTimer) $('#timer').hidden = true; }, 4000); }
+}
+function startRest() {
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
+  restEnd = Date.now() + REST * 1000; $('#timer').hidden = false;
+  clearInterval(restTimer); restTimer = setInterval(showRest, 250); showRest();
+}
+$('#tadd').addEventListener('click', function () {
+  restEnd = Math.max(restEnd, Date.now()) + 15000;
+  if (!restTimer) restTimer = setInterval(showRest, 250);
+  showRest();
+});
+$('#tstop').addEventListener('click', function () { clearInterval(restTimer); restTimer = null; $('#timer').hidden = true; });
+
+function plates() {
+  var t = Number($('#pt').value.replace(',', '.')), bar = Number($('#pb').value.replace(',', '.')), out = $('#pout');
+  if (!(t > bar)) { out.textContent = ''; return; }
+  var side = (t - bar) / 2, res = [];
+  [25, 20, 15, 10, 5, 2.5, 1.25].forEach(function (p) { var n = Math.floor(side / p + 1e-9); if (n) { res.push(n + ' × ' + fmt(p) + ' kg'); side -= n * p; } });
+  out.textContent = 'Pro Seite: ' + res.join(', ') + (side > 0.01 ? ' (Rest ' + fmt(side * 2) + ' kg nicht ladbar)' : '');
+}
+$('#pt').addEventListener('input', plates); $('#pb').addEventListener('input', plates);
+
+$('#csv').addEventListener('click', function () {
+  var q = function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; };
+  var gm = {}; groups().forEach(function (g) { gm[g.ex] = g.grp; });
+  var rows = ['Datum;Muskelgruppe;Übung;Gewicht (kg);Wiederholungen;Notiz'];
+  entries.slice().sort(function (a, b) { return a.date.localeCompare(b.date) || a.id - b.id; }).forEach(function (e) {
+    rows.push([e.date, q(gm[e.ex] || NONE), q(e.ex), String(e.kg).replace('.', ','), e.reps, q(e.note || '')].join(';'));
+  });
+  var name = 'krafttraining-' + today() + '.csv';
+  var blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv' });
+  var file; try { file = new File([blob], name, { type: 'text/csv' }); } catch (e) {}
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file] }).catch(function () {}); }
+  else { var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+  say('CSV bereit.');
 });
 
 if ('serviceWorker' in navigator) {
