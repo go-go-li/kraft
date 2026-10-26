@@ -124,6 +124,9 @@ input,select{min-height:48px}
 body[data-t="train"] [data-tab="train"],body[data-t="plans"] [data-tab="plans"],body[data-t="list"] [data-tab="list"],body[data-t="stats"] [data-tab="stats"],body[data-t="data"] [data-tab="data"]{display:grid}
 body[data-t="train"] #todaybox:empty{display:none}
 .meta{gap:4px 16px}
+.mrow{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:8px}
+.mrow small{color:var(--mute)}
+.macts{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
 </style>
 </head>
 <body>
@@ -156,12 +159,20 @@ body[data-t="train"] #todaybox:empty{display:none}
     <div id="plansbox" style="display:grid;gap:12px"></div>
   </section>
 
+  <button class="sec" id="gomanage" data-tab="list" style="width:100%;margin-bottom:12px">Übungen verwalten</button>
   <div id="list" class="list" data-tab="list"></div>
 
   <section class="backup" data-tab="stats" aria-label="Auswertung">
     <h2>Auswertung</h2>
     <label>Zeitraum<select id="per"><option value="4">Letzte 4 Wochen</option><option value="12">Letzte 12 Wochen</option><option value="0">Alles</option></select></label>
     <div id="statbox" style="display:grid;gap:10px"></div>
+  </section>
+
+  <section class="backup" data-tab="data" id="managebox" aria-label="Übungen verwalten">
+    <h2>Übungen verwalten</h2>
+    <p>Hier legst du Übungen an, benennst sie um, änderst die Muskelgruppe oder löschst sie.</p>
+    <div style="display:grid;gap:8px"><select id="mgrpnew" aria-label="Muskelgruppe"></select><input id="mname" placeholder="Name der neuen Übung" autocomplete="off"><button class="sec" id="madd" type="button">Übung anlegen</button></div>
+    <div id="mlist" style="display:grid;gap:8px"></div>
   </section>
 
   <section class="backup" data-tab="data" aria-label="Datensicherung">
@@ -174,6 +185,7 @@ body[data-t="train"] #todaybox:empty{display:none}
     </div>
     <input id="file" type="file" accept="application/json,.json" hidden>
     <div id="msg" role="status"></div>
+    <p id="ver" style="font-size:13px"></p>
   </section>
 </div>
 
@@ -352,7 +364,7 @@ function card(g) {
 
 function render() {
   $('#sub').textContent = entries.length + (entries.length === 1 ? ' Satz' : ' Sätze') + ' erfasst';
-  renderPlans(); renderToday(); renderStats();
+  renderPlans(); renderToday(); renderStats(); renderManage();
   var gs = groups();
   if (!gs.length) { $('#list').innerHTML = '<p class="empty">Noch keine Einträge. Wähle oben eine Muskelgruppe und eine Übung.</p>'; return; }
   $('#list').innerHTML = GROUPS.concat(['']).map(function (grp) {
@@ -645,6 +657,63 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
+var VERSION = '10';
+function grpOpts(cur) {
+  return GROUPS.map(function (g) { return '<option value="' + g + '"' + (g === cur ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
+    '<option value=""' + (cur === '' ? ' selected' : '') + '>' + NONE + '</option>';
+}
+function refreshAll() { renderSelect($('#exsel').value); render(); check(); }
+function renderManage() {
+  if (!$('#mgrpnew').options.length) $('#mgrpnew').innerHTML = grpOpts('Brust');
+  var names = {};
+  groups().forEach(function (g) { names[g.ex] = { grp: g.grp, n: g.desc.length }; });
+  customs.forEach(function (c) { if (!names[c.ex]) names[c.ex] = { grp: c.grp, n: 0 }; });
+  var h = '';
+  GROUPS.concat(['']).forEach(function (g) {
+    var list = Object.keys(names).filter(function (k) { return names[k].grp === g; }).sort(function (a, b) { return a.localeCompare(b, 'de'); });
+    if (!list.length) return;
+    h += '<p class="cap">' + (g || NONE) + '</p>' + list.map(function (k) {
+      var n = names[k].n;
+      return '<div class="mrow"><div><b>' + esc(k) + '</b> <small>' + (n ? n + (n === 1 ? ' Satz' : ' Sätze') : 'noch keine Sätze') + '</small></div>' +
+        '<div class="macts"><select data-mgrp="' + esc(k) + '" aria-label="Muskelgruppe von ' + esc(k) + '">' + grpOpts(names[k].grp) + '</select>' +
+        '<button class="mini" data-mren="' + esc(k) + '">Umbenennen</button><button class="mini" data-mdel="' + esc(k) + '">Löschen</button></div></div>';
+    }).join('');
+  });
+  $('#mlist').innerHTML = h || '<p>Noch keine Übungen.</p>';
+}
+function delEx(ex) {
+  var n = entries.filter(function (e) { return e.ex === ex; }).length;
+  var inP = plans.filter(function (p) { return p.exs.indexOf(ex) > -1; }).length;
+  var msg = n ? 'Zu „' + ex + '“ gehören ' + n + (n === 1 ? ' Satz' : ' Sätze') + '. Übung und alle Sätze löschen?' : 'Übung „' + ex + '“ löschen?';
+  if (inP) msg += ' Sie wird auch aus ' + inP + (inP === 1 ? ' Plan' : ' Plänen') + ' entfernt.';
+  if (!confirm(msg)) return;
+  entries = entries.filter(function (e) { return e.ex !== ex; });
+  customs = customs.filter(function (c) { return c.ex !== ex; });
+  plans.forEach(function (p) { p.exs = p.exs.filter(function (x) { return x !== ex; }); });
+  if (open === ex) open = null;
+  save(); saveCustoms(); savePlans(); refreshAll(); renderToday();
+}
+$('#managebox').addEventListener('click', function (ev) {
+  var b = ev.target.closest('button'); if (!b) return;
+  if (b.dataset.mren) { rowAction({ dataset: { rename: b.dataset.mren } }); renderToday(); }
+  else if (b.dataset.mdel) delEx(b.dataset.mdel);
+  else if (b.id === 'madd') {
+    var nm = $('#mname').value.trim(); if (!nm) return;
+    var ex0 = knownEx(nm);
+    if (ex0) { say('„' + ex0 + '“ gibt es schon.'); return; }
+    customs.push({ ex: nm, grp: $('#mgrpnew').value }); saveCustoms();
+    $('#mname').value = ''; say('„' + nm + '“ hinzugefügt.'); refreshAll();
+  }
+});
+$('#managebox').addEventListener('change', function (ev) {
+  var sel = ev.target.closest('[data-mgrp]'); if (!sel) return;
+  var ex = sel.dataset.mgrp, v = sel.value;
+  entries.forEach(function (e) { if (e.ex === ex) e.grp = v; });
+  customs.forEach(function (c) { if (c.ex === ex) c.grp = v; });
+  save(); saveCustoms(); refreshAll();
+});
+$('#gomanage').addEventListener('click', function () { go('data'); $('#managebox').scrollIntoView(); });
+$('#ver').textContent = 'App-Version ' + VERSION;
 function renderPlans() {
   var box = $('#plansbox');
   if (pedit) {
