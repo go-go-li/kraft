@@ -366,7 +366,7 @@ function render() {
   $('#sub').textContent = entries.length + (entries.length === 1 ? ' Satz' : ' Sätze') + ' erfasst';
   renderPlans(); renderToday(); renderStats(); renderManage();
   var gs = groups();
-  if (!gs.length) { $('#list').innerHTML = '<p class="empty">Noch keine Einträge. Wähle oben eine Muskelgruppe und eine Übung.</p>'; return; }
+  if (!gs.length) { $('#list').innerHTML = '<p class="empty">Noch keine Einträge.</p>'; return; }
   $('#list').innerHTML = GROUPS.concat(['']).map(function (grp) {
     var items = gs.filter(function (x) { return x.grp === grp; });
     if (!items.length) return '';
@@ -657,7 +657,7 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '10';
+var VERSION = '11';
 function grpOpts(cur) {
   return GROUPS.map(function (g) { return '<option value="' + g + '"' + (g === cur ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
     '<option value=""' + (cur === '' ? ' selected' : '') + '>' + NONE + '</option>';
