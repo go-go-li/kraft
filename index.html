@@ -301,7 +301,7 @@ function renderSelect(keep) {
   var g = $('#grp').value, sel = $('#exsel'), all = groups();
   var used = all.filter(function (x) { return x.grp === g; });
   var seen = {}; all.forEach(function (x) { seen[x.ex.toLowerCase()] = 1; });
-  var sug = (CATALOG[g] || []).filter(function (n) { return !seen[n.toLowerCase()]; });
+  var sug = suggest(g, seen);
   var opts = '<option value="" disabled>Übung wählen</option>';
   used.forEach(function (x) { opts += '<option value="' + esc(x.ex) + '">' + esc(x.ex) + '</option>'; });
   if (sug.length) {
@@ -419,6 +419,7 @@ function rowAction(t) {
     entries.forEach(function (x) { if (x.ex === old) x.ex = nn; });
     if (open === old) open = nn;
     plans.forEach(function (p) { p.exs = p.exs.map(function (n) { return n === old ? nn : n; }); }); savePlans();
+    customs.forEach(function (c) { if (c.ex === old) c.ex = nn; }); saveCustoms();
   }
   save(); renderSelect($('#exsel').value); render(); check();
 }
@@ -446,7 +447,7 @@ $('#list').addEventListener('change', function (ev) {
 // Sichern: bevorzugt über das iOS-Teilen-Menü (z. B. "In Dateien sichern"), sonst als Download
 $('#export').addEventListener('click', function () {
   var name = 'krafttraining-' + today() + '.json';
-  var blob = new Blob([JSON.stringify({ entries: entries, plans: plans }, null, 2)], { type: 'application/json' });
+  var blob = new Blob([JSON.stringify({ entries: entries, plans: plans, customs: customs }, null, 2)], { type: 'application/json' });
   var file; try { file = new File([blob], name, { type: 'application/json' }); } catch (e) {}
   if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
     navigator.share({ files: [file] }).then(function () { say('Sicherung bereit.'); }).catch(function () {});
@@ -464,13 +465,17 @@ $('#file').addEventListener('change', function () {
   rd.onload = function () {
     try {
       var data = JSON.parse(rd.result);
-      var np = data && data.plans;
+      var np = data && data.plans, nc = data && data.customs;
       if (!Array.isArray(data)) data = data && data.entries;
       if (!Array.isArray(data)) throw 0;
       if (Array.isArray(np)) np.forEach(function (p) {
         if (p && p.name && Array.isArray(p.exs) && !plans.some(function (q) { return q.name === p.name; })) plans.push({ id: p.id || Date.now(), name: String(p.name), exs: p.exs.map(String), days: Array.isArray(p.days) ? p.days.map(Number) : [] });
       });
       savePlans();
+      if (Array.isArray(nc)) nc.forEach(function (c) {
+        if (c && typeof c.ex === 'string' && !customs.some(function (x) { return x.ex.toLowerCase() === c.ex.toLowerCase(); })) customs.push({ ex: c.ex, grp: cleanGrp(c.grp) });
+      });
+      saveCustoms();
       var ids = {}; entries.forEach(function (e) { ids[e.id] = 1; });
       var added = 0;
       data.forEach(function (e) {
@@ -527,8 +532,45 @@ $('#csv').addEventListener('click', function () {
 
 var PKEY = 'krafttraining-plans-v1', plans = [], pedit = null;
 try { var pr = JSON.parse(localStorage.getItem(PKEY)); if (Array.isArray(pr)) plans = pr; } catch (e) {}
+var CKEY = 'krafttraining-custom-v1', customs = [];
+try { var cr = JSON.parse(localStorage.getItem(CKEY)); if (Array.isArray(cr)) customs = cr.filter(function (c) { return c && typeof c.ex === 'string'; }); } catch (e) {}
+function saveCustoms() { try { localStorage.setItem(CKEY, JSON.stringify(customs)); } catch (e) {} }
+// Vorschläge einer Muskelgruppe: feste Liste plus eigene Übungen, ohne bereits benutzte
+function suggest(g, seen) {
+  var out = [], dup = {};
+  (CATALOG[g] || []).concat(customs.filter(function (c) { return c.grp === g; }).map(function (c) { return c.ex; })).forEach(function (n) {
+    var l = n.toLowerCase(); if (!seen[l] && !dup[l]) { dup[l] = 1; out.push(n); }
+  });
+  return out;
+}
+function knownEx(nm) {
+  var l = nm.toLowerCase(), r = '';
+  groups().forEach(function (g) { if (g.ex.toLowerCase() === l) r = g.ex; });
+  customs.forEach(function (c) { if (!r && c.ex.toLowerCase() === l) r = c.ex; });
+  GROUPS.forEach(function (g) { CATALOG[g].forEach(function (n) { if (!r && n.toLowerCase() === l) r = n; }); });
+  return r;
+}
+function syncEdit() {
+  var box = $('#plansbox'), nm = box.querySelector('#pname');
+  if (!nm) return;
+  pedit.name = nm.value;
+  pedit.exs = [].map.call(box.querySelectorAll('input[type=checkbox]:not(.wdc):checked'), function (c) { return c.value; });
+  pedit.days = [].map.call(box.querySelectorAll('.wdc:checked'), function (c) { return Number(c.value); });
+  pedit.agrp = $('#pgrp').value;
+}
+function addBox(sel) {
+  return '<fieldset><legend>Eigene Übung hinzufügen</legend><div style="display:grid;gap:8px"><select id="pgrp" aria-label="Muskelgruppe">' +
+    GROUPS.map(function (g) { return '<option value="' + g + '"' + (g === sel ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
+    '<option value=""' + (sel === '' ? ' selected' : '') + '>' + NONE + '</option></select>' +
+    '<input id="pnewex" placeholder="Name der Übung" autocomplete="off"><button class="sec" id="paddex" type="button">Hinzufügen und im Plan auswählen</button></div></fieldset>';
+}
 function savePlans() { try { localStorage.setItem(PKEY, JSON.stringify(plans)); } catch (e) {} }
-function exGroup(ex) { var g = groups().filter(function (x) { return x.ex === ex; })[0]; return g ? g.grp : catalogGroup(ex); }
+function exGroup(ex) {
+  var g = groups().filter(function (x) { return x.ex === ex; })[0];
+  if (g) return g.grp;
+  var c = customs.filter(function (x) { return x.ex === ex; })[0];
+  return c ? c.grp : catalogGroup(ex);
+}
 
 var WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 function wdx(ds) { return (new Date(ds + 'T00:00:00').getDay() + 6) % 7; }
@@ -607,11 +649,11 @@ function renderPlans() {
   var box = $('#plansbox');
   if (pedit) {
     if (box.querySelector('#pname')) return;
-    var all = groups(), seen = {}, h = '<label>Name<input id="pname" value="' + esc(pedit.name) + '" placeholder="z. B. Push" autocomplete="off"></label>' + dayBoxes(pedit.days);
+    var all = groups(), seen = {}, h = '<label>Name<input id="pname" value="' + esc(pedit.name) + '" placeholder="z. B. Push" autocomplete="off"></label>' + dayBoxes(pedit.days) + addBox(pedit.agrp === undefined ? 'Brust' : pedit.agrp);
     all.forEach(function (x) { seen[x.ex.toLowerCase()] = 1; });
     GROUPS.concat(['']).forEach(function (g) {
       var names = all.filter(function (x) { return x.grp === g; }).map(function (x) { return x.ex; });
-      (CATALOG[g] || []).forEach(function (n) { if (!seen[n.toLowerCase()]) names.push(n); });
+      suggest(g, seen).forEach(function (n) { names.push(n); });
       if (!names.length) return;
       h += '<fieldset><legend>' + (g || NONE) + '</legend>' + names.map(function (n) {
         return '<label class="chk"><input type="checkbox" value="' + esc(n) + '"' + (pedit.exs.indexOf(n) > -1 ? ' checked' : '') + '> ' + esc(n) + '</label>';
@@ -653,9 +695,19 @@ $('#plansbox').addEventListener('click', function (ev) {
     else plans.push({ id: Date.now(), name: name, exs: exs, days: days });
     savePlans(); pedit = null;
   }
+  else if (b.id === 'paddex') {
+    syncEdit();
+    var nm = $('#pnewex').value.trim();
+    if (nm) {
+      var ex0 = knownEx(nm);
+      if (!ex0) { customs.push({ ex: nm, grp: pedit.agrp }); saveCustoms(); ex0 = nm; }
+      if (pedit.exs.indexOf(ex0) < 0) pedit.exs.push(ex0);
+    }
+    box.innerHTML = '';
+  }
   else if (b.id === 'pcancel') { pedit = null; }
   else return;
-  renderPlans(); renderToday();
+  renderPlans(); renderToday(); renderSelect($('#exsel').value);
 });
 
 function iso(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
