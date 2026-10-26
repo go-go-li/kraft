@@ -61,6 +61,15 @@ svg.spark{display:block;width:calc(100% - 28px);height:40px;margin:0 14px 14px}
 .meta .mini{margin-left:auto}
 .hist small{display:block;color:var(--mute)}
 .del+.del{margin-left:6px}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wd{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 3px;text-align:center;min-height:64px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.wd.today{border-color:var(--plate);box-shadow:0 0 0 1px var(--plate)}
+.wd b{font-size:13px}.wd small{font-size:11px;color:var(--mute)}
+.pl{font-size:10.5px;line-height:1.15;border-radius:4px;padding:2px;word-break:break-word}
+.pl.ok{background:var(--plate);color:var(--onplate)}
+.pl.todo{border:1px solid var(--plate);color:var(--plate)}
+.pl.miss{border:1px dashed var(--mute);color:var(--mute)}
+.log li{grid-template-columns:76px 1fr}
 fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 8px;padding:6px 12px}
 legend{font-weight:600;padding:0 4px}
 .chk{display:flex;gap:8px;align-items:center;font-size:16px;color:var(--ink);padding:3px 0}
@@ -422,7 +431,7 @@ $('#file').addEventListener('change', function () {
       if (!Array.isArray(data)) data = data && data.entries;
       if (!Array.isArray(data)) throw 0;
       if (Array.isArray(np)) np.forEach(function (p) {
-        if (p && p.name && Array.isArray(p.exs) && !plans.some(function (q) { return q.name === p.name; })) plans.push({ id: p.id || Date.now(), name: String(p.name), exs: p.exs.map(String) });
+        if (p && p.name && Array.isArray(p.exs) && !plans.some(function (q) { return q.name === p.name; })) plans.push({ id: p.id || Date.now(), name: String(p.name), exs: p.exs.map(String), days: Array.isArray(p.days) ? p.days.map(Number) : [] });
       });
       savePlans();
       var ids = {}; entries.forEach(function (e) { ids[e.id] = 1; });
@@ -484,11 +493,56 @@ try { var pr = JSON.parse(localStorage.getItem(PKEY)); if (Array.isArray(pr)) pl
 function savePlans() { try { localStorage.setItem(PKEY, JSON.stringify(plans)); } catch (e) {} }
 function exGroup(ex) { var g = groups().filter(function (x) { return x.ex === ex; })[0]; return g ? g.grp : catalogGroup(ex); }
 
+var WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+function wdx(ds) { return (new Date(ds + 'T00:00:00').getDay() + 6) % 7; }
+function dayMap() { var m = {}; entries.forEach(function (e) { (m[e.date] = m[e.date] || {})[e.ex] = 1; }); return m; }
+// Ein Plan gilt als trainiert, wenn mindestens die Hälfte seiner Übungen an dem Tag einen Satz hat
+function planStat(p, ds, m) {
+  var t = p.exs.length, d = m[ds]; if (!t || !d) return null;
+  var n = p.exs.filter(function (x) { return d[x]; }).length;
+  return { n: n, t: t, ok: n >= Math.ceil(t / 2) };
+}
+function lastDone(p, m) { var best = ''; Object.keys(m).forEach(function (ds) { var st = planStat(p, ds, m); if (st && st.ok && ds > best) best = ds; }); return best; }
+function planInfo(p, m) {
+  var ld = lastDone(p, m);
+  return (p.days && p.days.length ? 'Geplant: ' + p.days.slice().sort().map(function (i) { return WD[i]; }).join(', ') : 'Nicht eingeplant') + '. ' +
+    (ld ? 'Zuletzt trainiert: ' + WD[wdx(ld)] + ' ' + day(ld) : 'Noch nicht trainiert');
+}
+function dayBoxes(sel) {
+  return '<fieldset><legend>Geplante Wochentage</legend>' + WD.map(function (w, i) {
+    return '<label class="chk" style="display:inline-flex;margin-right:14px"><input type="checkbox" class="wdc" value="' + i + '"' + ((sel || []).indexOf(i) > -1 ? ' checked' : '') + '> ' + w + '</label>';
+  }).join('') + '</fieldset>';
+}
+function renderWeek(m) {
+  var d0 = new Date(weekStart(today()) + 'T00:00:00'), t = today(), h = '<p class="cap">Diese Woche</p><div class="week">';
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(d0); d.setDate(d.getDate() + i);
+    var ds = iso(d), cells = '';
+    plans.forEach(function (p) {
+      var st = planStat(p, ds, m), ok = st && st.ok, planned = (p.days || []).indexOf(i) > -1;
+      if (!planned && !ok) return;
+      cells += '<span class="pl ' + (ok ? 'ok' : ds < t ? 'miss' : 'todo') + '">' + (ok ? '✓ ' : '') + esc(p.name) + '</span>';
+    });
+    h += '<div class="wd' + (ds === t ? ' today' : '') + '"><b>' + WD[i] + '</b><small>' + ds.slice(8) + '</small>' + cells + '</div>';
+  }
+  return h + '</div>';
+}
+function renderLog(m) {
+  var rows = [];
+  Object.keys(m).sort().reverse().forEach(function (ds) {
+    if (rows.length >= 8) return;
+    var parts = [];
+    plans.forEach(function (p) { var st = planStat(p, ds, m); if (st && st.ok) parts.push(esc(p.name) + ' (' + st.n + '/' + st.t + ')'); });
+    if (parts.length) rows.push('<li><span>' + WD[wdx(ds)] + ' ' + day(ds) + '</span><span>' + parts.join(', ') + '</span></li>');
+  });
+  return rows.length ? '<p class="cap">Zuletzt trainiert</p><div class="card"><ul class="hist log">' + rows.join('') + '</ul></div>' : '';
+}
+
 function renderPlans() {
   var box = $('#plansbox');
   if (pedit) {
     if (box.querySelector('#pname')) return;
-    var all = groups(), seen = {}, h = '<label>Name<input id="pname" value="' + esc(pedit.name) + '" placeholder="z. B. Push" autocomplete="off"></label>';
+    var all = groups(), seen = {}, h = '<label>Name<input id="pname" value="' + esc(pedit.name) + '" placeholder="z. B. Push" autocomplete="off"></label>' + dayBoxes(pedit.days);
     all.forEach(function (x) { seen[x.ex.toLowerCase()] = 1; });
     GROUPS.concat(['']).forEach(function (g) {
       var names = all.filter(function (x) { return x.grp === g; }).map(function (x) { return x.ex; });
@@ -501,15 +555,16 @@ function renderPlans() {
     box.innerHTML = h + '<div class="btns"><button class="primary" id="psave">Plan speichern</button><button class="sec" id="pcancel">Abbrechen</button></div>';
     return;
   }
+  var m = dayMap();
   var list = plans.map(function (p) {
     var chips = p.exs.map(function (n) {
       var done = entries.some(function (e) { return e.ex === n && e.date === today(); });
       return '<button class="chip' + (done ? ' done' : '') + '" data-pex="' + esc(n) + '">' + (done ? '✓ ' : '') + esc(n) + '</button>';
     }).join('');
-    return '<article class="card plan"><h3>' + esc(p.name) + '</h3><div class="chips">' + (chips || '<span class="last">Keine Übungen</span>') +
+    return '<article class="card plan"><h3>' + esc(p.name) + '</h3><div class="last" style="padding:0 14px 8px">' + planInfo(p, m) + '</div><div class="chips">' + (chips || '<span class="last">Keine Übungen</span>') +
       '</div><div class="acts"><button class="mini" data-pedit="' + p.id + '">Bearbeiten</button><button class="mini" data-pdel="' + p.id + '">Löschen</button></div></article>';
   }).join('');
-  box.innerHTML = (plans.length ? list : '<p>Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.</p>') +
+  box.innerHTML = (plans.length ? renderWeek(m) + list + renderLog(m) : '<p>Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.</p>') +
     '<button class="sec" id="newplan">+ Neuer Plan</button>';
 }
 $('#plansbox').addEventListener('click', function (ev) {
@@ -519,20 +574,21 @@ $('#plansbox').addEventListener('click', function (ev) {
     $('#grp').value = exGroup(b.dataset.pex); renderSelect(b.dataset.pex); prefill(); check();
     window.scrollTo({ top: 0, behavior: 'smooth' }); return;
   }
-  if (b.id === 'newplan') { pedit = { id: 0, name: '', exs: [] }; box.innerHTML = ''; }
+  if (b.id === 'newplan') { pedit = { id: 0, name: '', exs: [], days: [] }; box.innerHTML = ''; }
   else if (b.dataset.pedit) {
     var p = plans.filter(function (x) { return x.id === Number(b.dataset.pedit); })[0];
-    if (!p) return; pedit = { id: p.id, name: p.name, exs: p.exs.slice() }; box.innerHTML = '';
+    if (!p) return; pedit = { id: p.id, name: p.name, exs: p.exs.slice(), days: (p.days || []).slice() }; box.innerHTML = '';
   }
   else if (b.dataset.pdel) {
     if (!confirm('Plan löschen? Deine Sätze bleiben erhalten.')) return;
     plans = plans.filter(function (x) { return x.id !== Number(b.dataset.pdel); }); savePlans();
   }
   else if (b.id === 'psave') {
-    var exs = [].map.call(box.querySelectorAll('input[type=checkbox]:checked'), function (c) { return c.value; });
+    var exs = [].map.call(box.querySelectorAll('input[type=checkbox]:not(.wdc):checked'), function (c) { return c.value; });
+    var days = [].map.call(box.querySelectorAll('.wdc:checked'), function (c) { return Number(c.value); });
     var name = $('#pname').value.trim() || 'Plan ' + (plans.length + 1);
-    if (pedit.id) plans.forEach(function (x) { if (x.id === pedit.id) { x.name = name; x.exs = exs; } });
-    else plans.push({ id: Date.now(), name: name, exs: exs });
+    if (pedit.id) plans.forEach(function (x) { if (x.id === pedit.id) { x.name = name; x.exs = exs; x.days = days; } });
+    else plans.push({ id: Date.now(), name: name, exs: exs, days: days });
     savePlans(); pedit = null;
   }
   else if (b.id === 'pcancel') { pedit = null; }
