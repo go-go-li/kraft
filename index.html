@@ -221,6 +221,28 @@ h1{padding-right:112px;font-size:32px}
 #topbar button{background:var(--tint);box-shadow:none}
 h1{padding-right:0;font-size:34px;margin:4px 0 2px}
 .wrap{padding-top:68px}
+#ttl,#sub{display:none}
+section[aria-label="Status"]>h2{display:none}
+.carousel{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:0 -4px;padding:4px 4px 12px}
+.carousel::-webkit-scrollbar{display:none}
+.carousel>.st{flex:0 0 100%;box-sizing:border-box;scroll-snap-align:center}
+.dots{display:flex;justify-content:center}
+.dots button{all:unset;box-sizing:content-box;width:8px;height:8px;border:8px solid transparent;border-radius:50%;background:var(--line);background-clip:padding-box;cursor:pointer;transition:width .2s}
+.dots button.on{background:var(--plate);width:20px;border-radius:12px;background-clip:padding-box}
+.dots button:focus-visible{outline:2px solid var(--plate)}
+.gtabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:4;background:var(--bg);padding:8px 0;margin:-8px 0 0}
+.gtabs::-webkit-scrollbar,.pager::-webkit-scrollbar{display:none}
+.gtabs button{all:unset;box-sizing:border-box;flex:0 0 auto;padding:9px 14px;border-radius:999px;background:var(--card);box-shadow:var(--shadow);font-size:15px;font-weight:600;color:var(--ink);cursor:pointer}
+.gtabs button.on{background:var(--plate);color:var(--onplate)}
+.gtabs small{opacity:.7;margin-left:2px}
+.gtabs button:focus-visible{outline:2px solid var(--plate)}
+.pager{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:flex-start;margin:0 -4px;padding:4px}
+.page{flex:0 0 100%;box-sizing:border-box;min-width:0;scroll-snap-align:start;display:grid;gap:12px;align-content:start}
+.ptop{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sec.on{background:var(--plate);color:var(--onplate)}
+.carousel>.card{flex:0 0 100%;box-sizing:border-box;scroll-snap-align:center}
+.carousel{align-items:flex-start}
+.fbar{position:sticky;bottom:calc(68px + env(safe-area-inset-bottom,0px));z-index:6;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);padding:10px;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.18);margin-top:8px}
 @keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){body[data-t] [data-tab]{animation:none}*{transition:none!important}}
 </style>
@@ -381,6 +403,10 @@ So|Sun
 Trainingspläne|Training plans
 Diese Woche. Tag antippen für Details.|This week. Tap a day for details.
 Zuletzt trainiert|Recently trained
+Trainingseinheiten|Training sessions
+Alle anzeigen|Show all
+Tag anzeigen|Show day
+Für diesen Tag ist kein Plan eingeplant.|No plan scheduled for this day.
 Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.|No plan yet. Create e.g. Push, Pull and Legs. Tapping an exercise in a plan selects it above for logging.
 + Neuer Plan|+ New plan
 Bearbeiten|Edit
@@ -746,13 +772,44 @@ function render() {
   renderPlans(); renderToday(); renderStats(); renderManage(); renderStatus();
   var gs = groups();
   if (!gs.length) { $('#list').innerHTML = '<p class="empty">Noch keine Einträge.</p>'; return; }
-  $('#list').innerHTML = GROUPS.concat(['']).map(function (grp) {
-    var items = gs.filter(function (x) { return x.grp === grp; });
-    if (!items.length) return '';
-    return '<h2 class="gh">' + (grp || NONE) + '<span>' + items.length + '</span></h2>' + items.map(card).join('');
-  }).join('');
+  pgGroups = GROUPS.concat(['']).filter(function (g) { return gs.some(function (x) { return x.grp === g; }); });
+  if (pgGroups.indexOf(gKey) < 0) gKey = pgGroups[0];
+  $('#list').innerHTML = '<div class="gtabs" id="gtabs">' + pgGroups.map(function (g, i) {
+    return '<button type="button" data-gi="' + i + '"' + (g === gKey ? ' class="on"' : '') + '>' + (g || NONE) + ' <small>' + gs.filter(function (x) { return x.grp === g; }).length + '</small></button>';
+  }).join('') + '</div><div class="pager" id="pager">' + pgGroups.map(function (g) {
+    return '<div class="page">' + gs.filter(function (x) { return x.grp === g; }).map(card).join('') + '</div>';
+  }).join('') + '</div>';
+  $('#pager').addEventListener('scroll', onPgScroll);
+  pgRestore();
   startAnim();
 }
+var gKey = null, pgGroups = [];
+function pgStep() { var p = document.querySelector('#pager'); return p && p.children[1] ? p.children[1].offsetLeft - p.children[0].offsetLeft : (p ? p.clientWidth : 0); }
+function pgFit() {
+  var p = document.querySelector('#pager'); if (!p) return;
+  var pg = p.children[Math.max(0, pgGroups.indexOf(gKey))];
+  if (pg) p.style.height = pg.offsetHeight + 'px';
+}
+function pgRestore() {
+  var p = document.querySelector('#pager'), w = pgStep();
+  if (p && w) { p.style.scrollBehavior = 'auto'; p.scrollLeft = Math.max(0, pgGroups.indexOf(gKey)) * w; }
+  pgFit();
+}
+function onPgScroll() {
+  var p = document.querySelector('#pager'), w = pgStep(); if (!p || !w) return;
+  var i = Math.max(0, Math.min(pgGroups.length - 1, Math.round(p.scrollLeft / w)));
+  if (pgGroups[i] === gKey) return;
+  gKey = pgGroups[i]; pgFit();
+  var tabs = document.querySelector('#gtabs');
+  [].forEach.call(tabs.children, function (b, k) {
+    b.classList.toggle('on', k === i);
+    if (k === i) tabs.scrollLeft = b.offsetLeft - (tabs.clientWidth - b.offsetWidth) / 2;
+  });
+}
+document.querySelector('#list').addEventListener('click', function (ev) {
+  var b = ev.target.closest('[data-gi]'), p = document.querySelector('#pager'); if (!b || !p) return;
+  p.style.scrollBehavior = ''; p.scrollTo({ left: Number(b.dataset.gi) * pgStep(), behavior: 'smooth' });
+});
 
 function valid() {
   var kg = $('#kg').value, reps = $('#reps').value;
@@ -787,7 +844,7 @@ $('#save').addEventListener('click', function () {
   if (match) { ex = match.ex; grp = match.grp; }
   var before = snap();
   entries.push({ id: Date.now(), ex: ex, grp: grp, note: $('#note').value.trim(), kg: toKg(Number($('#kg').value)), reps: Number($('#reps').value), date: $('#date').value });
-  save(); open = ex; startRest(); levelUp(before);
+  save(); open = ex; gKey = grp; startRest(); levelUp(before);
   $('#note').value = '';
   $('#exnew').value = ''; adding = false;
   $('#grp').value = grp;
@@ -1026,7 +1083,7 @@ function dayBoxes(sel) {
   }).join('') + '</fieldset>';
 }
 function renderWeek(m) {
-  var d0 = new Date(weekStart(today()) + 'T00:00:00'), t = today(), inP = planned(), h = '<p class="cap">Diese Woche. Tag antippen für Details.</p><div class="week">';
+  var d0 = new Date(weekStart(today()) + 'T00:00:00'), t = today(), inP = planned(), h = '<div class="week">';
   for (var i = 0; i < 7; i++) {
     var d = new Date(d0); d.setDate(d.getDate() + i);
     var ds = iso(d), cells = '';
@@ -1038,7 +1095,7 @@ function renderWeek(m) {
     var fn = freeN(ds, m, inP); if (fn) cells += '<span class="pl free">Frei ' + fn + '</span>';
     h += '<div class="wd' + (ds === t ? ' today' : '') + (ds === selDay ? ' sel' : '') + '" data-day="' + ds + '" role="button" tabindex="0"><b>' + WD[i] + '</b><small>' + ds.slice(8) + '</small>' + cells + '</div>';
   }
-  return h + '</div>' + (selDay ? dayDetail(selDay, m, inP) : '');
+  return h + '</div>';
 }
 function renderLog(m) {
   var rows = [], inP = planned();
@@ -1068,6 +1125,9 @@ var TITLES = { train: 'Training', plans: 'Pläne', list: 'Übungen', stats: 'Aus
 function go(t) {
   document.body.dataset.t = t;
   $('#ttl').textContent = TITLES[t] || '';
+  if (t === 'stats') requestAnimationFrame(stRestore);
+  if (t === 'list') requestAnimationFrame(pgRestore);
+  if (t === 'plans') requestAnimationFrame(plRestore);
   if (t !== 'data' && mg !== null) { mg = null; medit = ''; madding = false; renderManage(); }
   try { localStorage.setItem('krafttraining-tab', t); } catch (e) {}
   document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.go === t); });
@@ -1079,7 +1139,7 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '27';
+var VERSION = '30';
 // ---- Status: 10 Punkte je Satz, 30 extra je neue Bestleistung, im Gesamtstatus 25 je Trainingstag ----
 var LV = ['Einsteiger', 'Bronze', 'Silber', 'Gold', 'Platin', 'Diamant', 'Legende'];
 var TH_ALL = [0, 100, 300, 700, 1500, 3000, 6000], TH_GRP = [0, 50, 150, 350, 750, 1500, 3000];
@@ -1106,6 +1166,20 @@ function levelUp(b) {
   GROUPS.forEach(function (g) { if (a[g] > b[g]) m.push(g + ' ' + LV[a[g]]); });
   if (m.length) toast('🎉 Neuer Status: ' + m.join(', '));
 }
+var stIdx = 0;
+function stStep() { var c = document.querySelector('#carousel'); return c && c.children[1] ? c.children[1].offsetLeft - c.children[0].offsetLeft : (c ? c.clientWidth : 0); }
+function stRestore() { var c = document.querySelector('#carousel'), w = stStep(); if (c && w) c.scrollLeft = stIdx * w; }
+function onStScroll() {
+  var c = document.querySelector('#carousel'), w = stStep(); if (!c || !w) return;
+  var i = Math.max(0, Math.min(GROUPS.length, Math.round(c.scrollLeft / w)));
+  if (i === stIdx) return;
+  stIdx = i;
+  [].forEach.call(document.querySelectorAll('#dots button'), function (b) { b.classList.toggle('on', Number(b.dataset.i) === i); });
+}
+document.querySelector('#statusbody').addEventListener('click', function (ev) {
+  var b = ev.target.closest('[data-i]'), c = document.querySelector('#carousel'); if (!b || !c) return;
+  c.scrollTo({ left: Number(b.dataset.i) * stStep(), behavior: 'smooth' });
+});
 function renderStatus() {
   var s = xp();
   var card = function (x, th, name, big) {
@@ -1113,9 +1187,13 @@ function renderStatus() {
     return '<div class="st' + (big ? ' big2' : '') + '"><div class="medal" style="background:' + LCOL[i] + '">' + (i + 1) + '</div><div class="stinfo"><div class="sthead"><b>' + name + '</b><span>' + LV[i] + '</span></div>' +
       '<div class="bar"><i style="width:' + pct + '%"></i></div><small>' + fmt(x) + ' Punkte' + (nx ? ', noch ' + fmt(nx - x) + ' bis ' + LV[i + 1] : ', höchster Status') + '</small></div></div>';
   };
-  $('#statusbody').innerHTML = card(s.all, TH_ALL, 'Gesamtstatus', true) + '<p class="cap">Muskelgruppen</p>' +
-    GROUPS.map(function (g) { return card(s.per[g] || 0, TH_GRP, g, false); }).join('') +
-    '<p class="cap">So sammelst du Punkte: 10 pro Satz, 30 extra für eine neue Bestleistung, im Gesamtstatus zusätzlich 25 pro Trainingstag.</p>';
+  var names = ['Gesamtstatus'].concat(GROUPS);
+  var cards = [card(s.all, TH_ALL, 'Gesamtstatus', true)].concat(GROUPS.map(function (g) { return card(s.per[g] || 0, TH_GRP, g, true); }));
+  $('#statusbody').innerHTML = '<div class="carousel" id="carousel">' + cards.join('') + '</div><div class="dots" id="dots">' +
+    names.map(function (n, k) { return '<button type="button" data-i="' + k + '" aria-label="' + n + '"' + (k === stIdx ? ' class="on"' : '') + '></button>'; }).join('') +
+    '</div><p class="cap">So sammelst du Punkte: 10 pro Satz, 30 extra für eine neue Bestleistung, im Gesamtstatus zusätzlich 25 pro Trainingstag.</p>';
+  $('#carousel').addEventListener('scroll', onStScroll);
+  stRestore();
   var i = lvl(s.all, TH_ALL);
   $('#stchip').innerHTML = '<button class="chipst" type="button"><span class="medal sm" style="background:' + LCOL[i] + '">' + (i + 1) + '</span>' + LV[i] + ', ' + fmt(s.all) + ' Punkte</button>';
 }
@@ -1226,24 +1304,51 @@ function renderPlans() {
         return '<label class="chk"><input type="checkbox" value="' + esc(n) + '"' + (pedit.exs.indexOf(n) > -1 ? ' checked' : '') + '> ' + esc(n) + '</label>';
       }).join('') + '</fieldset>';
     });
-    box.innerHTML = h + '<div class="btns"><button class="primary" id="psave">Plan speichern</button><button class="sec" id="pcancel">Abbrechen</button></div>';
+    box.innerHTML = h + '<div class="btns fbar"><button class="primary" id="psave">Plan speichern</button><button class="sec" id="pcancel">Abbrechen</button></div>';
     return;
   }
-  var m = dayMap();
-  var list = plans.map(function (p) {
+  var m = dayMap(), t = today();
+  if (!selDay) selDay = t;
+  var ds = plShowAll ? t : selDay;
+  var card = function (p) {
+    var d = m[ds] || {};
     var chips = p.exs.map(function (n) {
-      var done = entries.some(function (e) { return e.ex === n && e.date === today(); });
-      return '<button class="chip' + (done ? ' done' : '') + '" data-pex="' + esc(n) + '">' + (done ? '✓ ' : '') + esc(n) + '</button>';
+      return '<button class="chip' + (d[n] ? ' done' : '') + '" data-pex="' + esc(n) + '">' + (d[n] ? '✓ ' : '') + esc(n) + '</button>';
     }).join('');
     return '<article class="card plan"><h3>' + esc(p.name) + '</h3><div class="last" style="padding:0 14px 8px">' + planInfo(p, m) + '</div><div class="chips">' + (chips || '<span class="last">Keine Übungen</span>') +
       '</div><div class="acts"><button class="mini" data-pedit="' + p.id + '">Bearbeiten</button><button class="mini" data-pdel="' + p.id + '">Löschen</button></div></article>';
-  }).join('');
-  box.innerHTML = renderWeek(m) + (plans.length ? list : '<p>Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.</p>') + renderLog(m) +
-    '<button class="sec" id="newplan">+ Neuer Plan</button>';
+  };
+  var h = '<div class="ptop"><button class="sec" id="newplan">+ Neuer Plan</button><button class="sec' + (plShowAll ? ' on' : '') + '" id="plall" aria-pressed="' + plShowAll + '">' + (plShowAll ? 'Tag anzeigen' : 'Alle anzeigen') + '</button></div>' + renderWeek(m);
+  if (plIdx >= plans.length) plIdx = 0;
+  if (plShowAll) {
+    h += plans.length
+      ? '<div class="carousel" id="plcar">' + plans.map(card).join('') + '</div><div class="dots" id="pldots">' +
+        plans.map(function (p, i) { return '<button type="button" data-pi="' + i + '" aria-label="' + esc(p.name) + '"' + (i === plIdx ? ' class="on"' : '') + '></button>'; }).join('') + '</div>'
+      : '<p>Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.</p>';
+  } else {
+    var wd = wdx(selDay), sched = plans.filter(function (p) { return (p.days || []).indexOf(wd) > -1; });
+    h += '<p class="cap">Trainingseinheiten</p>' + dayDetail(selDay, m, planned()) + '<p class="cap">Pläne</p>' +
+      (sched.length ? sched.map(card).join('') : '<p>Für diesen Tag ist kein Plan eingeplant.</p>');
+  }
+  box.innerHTML = h + renderLog(m);
+  var pc = document.querySelector('#plcar');
+  if (pc) { pc.addEventListener('scroll', onPlScroll); plRestore(); }
+}
+var plShowAll = false, plIdx = 0;
+function plStep() { var c = document.querySelector('#plcar'); return c && c.children[1] ? c.children[1].offsetLeft - c.children[0].offsetLeft : (c ? c.clientWidth : 0); }
+function plRestore() { var c = document.querySelector('#plcar'), w = plStep(); if (c && w) { c.style.scrollBehavior = 'auto'; c.scrollLeft = plIdx * w; } }
+function onPlScroll() {
+  var c = document.querySelector('#plcar'), w = plStep(); if (!c || !w) return;
+  var i = Math.max(0, Math.min(plans.length - 1, Math.round(c.scrollLeft / w)));
+  if (i === plIdx) return;
+  plIdx = i;
+  [].forEach.call(document.querySelectorAll('#pldots button'), function (b) { b.classList.toggle('on', Number(b.dataset.pi) === i); });
 }
 $('#plansbox').addEventListener('click', function (ev) {
   var dc = ev.target.closest('[data-day]');
-  if (dc) { selDay = selDay === dc.dataset.day ? '' : dc.dataset.day; renderPlans(); return; }
+  if (dc) { selDay = dc.dataset.day; plShowAll = false; renderPlans(); return; }
+  var pd = ev.target.closest('[data-pi]'), pcar = document.querySelector('#plcar');
+  if (pd && pcar) { pcar.style.scrollBehavior = ''; pcar.scrollTo({ left: Number(pd.dataset.pi) * plStep(), behavior: 'smooth' }); return; }
   var b = ev.target.closest('button'); if (!b) return;
   var box = $('#plansbox');
   if (b.dataset.pex) { pickEx(b.dataset.pex); return; }
@@ -1275,6 +1380,7 @@ $('#plansbox').addEventListener('click', function (ev) {
     }
     box.innerHTML = '';
   }
+  else if (b.id === 'plall') { plShowAll = !plShowAll; }
   else if (b.id === 'pcancel') { pedit = null; }
   else return;
   renderPlans(); renderToday(); renderSelect($('#exsel').value);
