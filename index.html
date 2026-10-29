@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Krafttraining-Tracker</title>
+<script>try{var _t=localStorage.getItem('krafttraining-theme');if(_t&&_t!=='system')document.documentElement.setAttribute('data-theme',_t)}catch(e){}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -166,7 +167,10 @@ body[data-t] [data-tab]{animation:fin .2s ease-out}
 .step{grid-template-columns:42px 1fr 42px;gap:5px}
 .step input{padding:0;font-size:19px}
 .row label:last-child{grid-column:auto}
-input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:50px;text-align:left}
+input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:50px;text-align:center;display:flex;align-items:center;justify-content:center;padding:0 8px;line-height:1.3}
+input[type=date]::-webkit-date-and-time-value{text-align:center;width:100%;min-height:1.3em;margin:0}
+input[type=date]::-webkit-datetime-edit{text-align:center;padding:0}
+input[type=date]::-webkit-datetime-edit-fields-wrapper{padding:0}
 .wd{cursor:pointer}.wd.sel{background:var(--tint)}
 .dd{padding:12px 14px;display:grid;gap:4px}.dd div{font-size:15px}
 .dd hr{border:0;border-top:1px solid var(--line);margin:6px 0;width:100%}
@@ -191,6 +195,26 @@ select:disabled{opacity:.45}
 .chb:focus-visible{outline:2px solid var(--plate);border-radius:8px}
 .chev{width:10px;height:10px;border-right:2.5px solid var(--mute);border-bottom:2.5px solid var(--mute);transform:rotate(45deg);transition:transform .2s;margin:-4px 6px 0 0}
 .collapsible:not(.collapsed) .chev{transform:rotate(-135deg);margin-top:4px}
+.st{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px}
+.st.big2{grid-template-columns:56px 1fr;padding:16px}
+.medal{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;font-size:18px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.2)}
+.big2 .medal{width:56px;height:56px;font-size:24px}
+.medal.sm{width:26px;height:26px;font-size:13px;display:inline-grid;margin-right:8px}
+.sthead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.sthead b{font-size:17px}.sthead span{font-weight:600;color:var(--plate)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:6px 0 4px}.bar i{display:block;height:100%;background:var(--plate);border-radius:4px}
+.stinfo small{color:var(--mute);font-size:13px}
+#stchip{justify-items:start}
+.chipst{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;background:var(--card);box-shadow:var(--shadow);border-radius:999px;padding:6px 14px 6px 6px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px}
+.chipst:focus-visible{outline:2px solid var(--plate)}
+#toast{position:fixed;left:16px;right:16px;top:calc(12px + env(safe-area-inset-top,0px));max-width:520px;margin:0 auto;background:var(--plate);color:var(--onplate);border-radius:14px;padding:12px 16px;font-weight:700;text-align:center;z-index:9;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+#toast[hidden]{display:none}
+:root[data-theme="light"]{--bg:#f2f2f7;--card:#fff;--ink:#1c1c1e;--mute:#6c6c70;--line:#dcdce2;--plate:#1f5fbf;--tint:#e6eefb;--onplate:#fff;--glass:rgba(255,255,255,.82);--shadow:0 1px 2px rgba(0,0,0,.05),0 6px 16px rgba(0,0,0,.05);--pr:#d9a400;--bad:#b3261e;color-scheme:light}
+:root[data-theme="dark"]{--bg:#0d0f12;--card:#181b20;--ink:#f2f3f5;--mute:#9a9fa8;--line:#2a2e35;--plate:#6aa6ff;--tint:#1d2b43;--onplate:#0b1730;--glass:rgba(24,27,32,.82);--shadow:0 1px 2px rgba(0,0,0,.4);--pr:#f0be2a;--bad:#ff8a80;color-scheme:dark}
+#topbar{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:14px;display:flex;gap:8px;z-index:7}
+#topbar button{all:unset;box-sizing:border-box;height:40px;min-width:40px;padding:0 11px;display:flex;align-items:center;justify-content:center;gap:5px;border-radius:20px;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(14px);backdrop-filter:saturate(180%) blur(14px);box-shadow:var(--shadow);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+#topbar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#topbar button:active{transform:scale(.94)}#topbar button:focus-visible{outline:2px solid var(--plate)}
+h1{padding-right:112px;font-size:32px}
 @keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){body[data-t] [data-tab]{animation:none}*{transition:none!important}}
 </style>
@@ -199,6 +223,8 @@ select:disabled{opacity:.45}
 <div class="wrap">
   <h1 id="ttl">Training</h1>
   <p class="sub" id="sub"></p>
+
+  <div id="stchip" data-tab="train"></div>
 
   <div id="todaybox" data-tab="train"></div>
 
@@ -223,6 +249,11 @@ select:disabled{opacity:.45}
   </section>
 
   <div id="list" class="list" data-tab="list"></div>
+
+  <section class="backup" data-tab="stats" aria-label="Status">
+    <h2>Status</h2>
+    <div id="statusbody" style="display:grid;gap:10px"></div>
+  </section>
 
   <section class="backup" data-tab="stats" aria-label="Auswertung">
     <h2>Auswertung</h2>
@@ -251,6 +282,13 @@ select:disabled{opacity:.45}
   <p id="ver" data-tab="data" style="font-size:13px;color:var(--mute);margin:8px 4px"></p>
 </div>
 
+<div id="topbar">
+  <button id="langbtn" type="button" aria-label="Sprache wechseln"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg><span id="langtxt">DE</span></button>
+  <button id="themebtn" type="button" aria-label="Zum dunklen Modus wechseln"><svg id="themeico" viewBox="0 0 24 24" aria-hidden="true"></svg></button>
+</div>
+
+<div id="toast" role="status" hidden></div>
+
 <nav id="tabs" aria-label="Bereiche">
   <button data-go="train"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg></span>Training</button>
   <button data-go="plans"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span>Pläne</button>
@@ -262,6 +300,257 @@ select:disabled{opacity:.45}
 <div id="timer" hidden role="timer"><span>Pause</span><b id="tleft">1:30</b><button id="tadd">+15 s</button><button id="tstop">Stopp</button></div>
 
 <script>
+// ---- Sprache (Deutsch/Englisch) und Farbschema ----
+var LANG = 'de', THEME = 'system';
+try { LANG = localStorage.getItem('krafttraining-lang') || 'de'; THEME = localStorage.getItem('krafttraining-theme') || 'system'; } catch (e) {}
+var EN = Object.create(null);
+var DICT = `Training|Workout
+Pläne|Plans
+Übungen|Exercises
+Auswertung|Stats
+Einstellungen|Settings
+Bereiche|Sections
+Neuen Satz erfassen|Log a new set
+Muskelgruppe|Muscle group
+Übung|Exercise
+Gewicht (kg)|Weight (kg)
+Gewicht in kg|Weight in kg
+Wiederholungen|Reps
+Datum|Date
+Notiz|Note
+optional|optional
+Name der neuen Übung|New exercise name
+Satz speichern|Save set
+Übung wählen|Choose exercise
+Vorschläge|Suggestions
+Eigene Übung hinzufügen|Add custom exercise
+Abbrechen|Cancel
+2,5 kg weniger|2.5 kg less
+2,5 kg mehr|2.5 kg more
+Eine weniger|One less
+Eine mehr|One more
+Brust|Chest
+Rücken|Back
+Schultern|Shoulders
+Bizeps|Biceps
+Trizeps|Triceps
+Beine|Legs
+Gesäß|Glutes
+Bauch|Abs
+Ohne Gruppe|No group
+Mo|Mon
+Di|Tue
+Mi|Wed
+Do|Thu
+Fr|Fri
+Sa|Sat
+So|Sun
+Trainingspläne|Training plans
+Diese Woche. Tag antippen für Details.|This week. Tap a day for details.
+Zuletzt trainiert|Recently trained
+Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.|No plan yet. Create e.g. Push, Pull and Legs. Tapping an exercise in a plan selects it above for logging.
++ Neuer Plan|+ New plan
+Bearbeiten|Edit
+Löschen|Delete
+Keine Übungen|No exercises
+z. B. Push|e.g. Push
+Geplante Wochentage|Scheduled weekdays
++ Eigene Übung hinzufügen|+ Add custom exercise
+× Abbrechen|× Cancel
+Eigene Übung|Custom exercise
+Name der Übung|Exercise name
+Hinzufügen und im Plan auswählen|Add and select in plan
+Plan speichern|Save plan
+Kein Training.|No training.
+Freies Training|Free training
+Weitere Übungen|Other exercises
+Noch keine Einträge.|No entries yet.
+Bestleistung|Personal best
+Geschätztes Max|Estimated max
+Nächstes Mal|Next time
+Gleicher Satz|Repeat set
+Veränderung|Change
+Ändern|Edit
+Neue Bestleistung|New personal best
+Zeitraum|Period
+4 Wochen|4 weeks
+12 Wochen|12 weeks
+Alles|All
+Trainingstage|Training days
+Sätze|Sets
+Volumen (kg)|Volume (kg)
+Bestleistungen|Personal bests
+Noch keine Daten.|No data yet.
+Volumen je Muskelgruppe|Volume by muscle group
+Gesamtstatus|Overall status
+Muskelgruppen|Muscle groups
+Einsteiger|Beginner
+Silber|Silver
+Platin|Platinum
+Diamant|Diamond
+Legende|Legend
+So sammelst du Punkte: 10 pro Satz, 30 extra für eine neue Bestleistung, im Gesamtstatus zusätzlich 25 pro Trainingstag.|How to earn points: 10 per set, 30 extra for a new personal best, plus 25 per training day in the overall status.
+Darstellung|Appearance
+Sprache|Language
+Farbschema|Color scheme
+Sprache wechseln|Switch language
+Zum hellen Modus wechseln|Switch to light mode
+Zum dunklen Modus wechseln|Switch to dark mode
+Übungen verwalten|Manage exercises
+Tippe auf den Stift einer Muskelgruppe, um ihre Übungen zu bearbeiten oder neue hinzuzufügen.|Tap the pencil of a muscle group to edit its exercises or add new ones.
+‹ Muskelgruppen|‹ Muscle groups
++ Übung hinzufügen|+ Add exercise
+Hinzufügen|Add
+Noch keine Übungen in dieser Gruppe.|No exercises in this group yet.
+Speichern|Save
+Datensicherung|Backup
+Deine Daten liegen nur auf diesem Gerät. Sichere sie ab und zu als Datei.|Your data only lives on this device. Back it up as a file from time to time.
+Daten sichern|Back up data
+Daten laden|Load data
+CSV exportieren|Export CSV
+Sicherung bereit.|Backup ready.
+Sicherung heruntergeladen.|Backup downloaded.
+CSV bereit.|CSV ready.
+Die Datei konnte nicht gelesen werden. Wähle eine Sicherung aus diesem Tracker.|The file could not be read. Choose a backup from this tracker.
+Pause|Rest
+Stopp|Stop
+Los!|Go!
+Plan löschen? Deine Sätze bleiben erhalten.|Delete plan? Your sets will be kept.
+Notiz|Note
+Bankdrücken|Bench Press
+Schrägbankdrücken|Incline Bench Press
+Kurzhantel-Bankdrücken|Dumbbell Bench Press
+Fliegende|Chest Fly
+Brustpresse|Chest Press Machine
+Klimmzüge|Pull-ups
+Latziehen|Lat Pulldown
+Rudern|Rows
+Kabelrudern|Cable Row
+Kreuzheben|Deadlift
+Rückenstrecker|Back Extension
+Schulterdrücken|Shoulder Press
+Seitheben|Lateral Raise
+Frontheben|Front Raise
+Langhantel-Curls|Barbell Curls
+Kurzhantel-Curls|Dumbbell Curls
+Scott-Curls|Preacher Curls
+Kabel-Curls|Cable Curls
+Trizepsdrücken|Triceps Pushdown
+Französisches Drücken|Skull Crushers
+Enges Bankdrücken|Close-Grip Bench Press
+Overhead-Trizepsstrecken|Overhead Triceps Extension
+Kniebeuge|Squat
+Beinpresse|Leg Press
+Ausfallschritte|Lunges
+Rumänisches Kreuzheben|Romanian Deadlift
+Beinstrecker|Leg Extension
+Beinbeuger|Leg Curl
+Wadenheben|Calf Raise
+Bulgarische Kniebeuge|Bulgarian Split Squat
+Kabel-Kickbacks|Cable Kickbacks
+Abduktoren-Maschine|Hip Abduction Machine
+Beinheben hängend|Hanging Leg Raise
+Bauchrad|Ab Wheel`;
+DICT.split('\n').forEach(function (l) { var p = l.split('|'); EN[p[0]] = p[1]; });
+function tk(x) { return EN[x] || x; }
+var WDS = /\b(Mo|Di|Mi|Do|Fr|Sa|So)\b/g;
+var PAT = [
+  [/^(\d+) (?:Satz|Sätze) erfasst$/, function (a, n) { return n + (n === '1' ? ' set logged' : ' sets logged'); }],
+  [/^Zuletzt (.+) kg × (.+) am (.+)$/, function (a, w, r, d) { return 'Last: ' + w + ' kg × ' + r + ' on ' + d; }],
+  [/^Heute geplant: (.+)$/, function (a, n) { return 'Planned today: ' + n; }],
+  [/^(Geplant: .*|Nicht eingeplant.*)$/, function (a) { return a.replace('Geplant: ', 'Scheduled: ').replace('Nicht eingeplant', 'Not scheduled').replace('Zuletzt trainiert: ', 'Last trained: ').replace('Noch nicht trainiert', 'Not trained yet').replace(WDS, tk); }],
+  [/^(Mo|Di|Mi|Do|Fr|Sa|So) (\d.*)$/, function (a, d, r) { return tk(d) + ' ' + r; }],
+  [/^(.+) – (\d+) (?:Satz|Sätze), zuletzt (.+) kg × (.+)$/, function (a, e, n, w, r) { return tk(e) + ' – ' + n + (n === '1' ? ' set' : ' sets') + ', last ' + w + ' kg × ' + r; }],
+  [/^Frei (\d+)$/, function (a, n) { return 'Free ' + n; }],
+  [/^Freies Training: (.+)$/, function (a, l) { return 'Free training: ' + l.split(', ').map(tk).join(', '); }],
+  [/^✓ (.+)$/, function (a, n) { return '✓ ' + tk(n); }],
+  [/^Volumen pro Woche \(älteste links\), Spitze (.+) kg$/, function (a, v) { return 'Volume per week (oldest on the left), peak ' + v + ' kg'; }],
+  [/^(.+) Punkte, noch (.+) bis (.+)$/, function (a, p, n, l) { return p + ' points, ' + n + ' to go until ' + tk(l); }],
+  [/^(.+) Punkte, höchster Status$/, function (a, p) { return p + ' points, highest status'; }],
+  [/^([A-Za-zÄÖÜäöüß]+), ([\d.,]+) Punkte$/, function (a, l, p) { return tk(l) + ', ' + p + ' points'; }],
+  [/^🎉 Neuer Status: (.+)$/, function (a, l) { return '🎉 New status: ' + l.replace(/[A-Za-zÄÖÜäöüß]+/g, tk); }],
+  [/^(\d+) Übungen?$/, function (a, n) { return n === '1' ? '1 exercise' : n + ' exercises'; }],
+  [/^App-Version (.+)$/, function (a, v) { return 'App version ' + v; }],
+  [/^„(.+)“ gibt es schon\.$/, function (a, n) { return '“' + n + '” already exists.'; }],
+  [/^„(.+)“ hinzugefügt\.$/, function (a, n) { return '“' + n + '” added.'; }],
+  [/^(\d+) (?:Satz|Sätze) geladen\.$/, function (a, n) { return n + (n === '1' ? ' set loaded.' : ' sets loaded.'); }],
+  [/^Satz vom (.+) löschen$/, function (a, d) { return 'Delete set from ' + d; }],
+  [/^Muskelgruppe von (.+)$/, function (a, n) { return 'Muscle group of ' + tk(n); }],
+  [/^Animation: (.+)$/, function (a, n) { return 'Animation: ' + tk(n); }],
+  [/^(.+) bearbeiten$/, function (a, n) { return 'Edit ' + tk(n); }],
+  [/^„(.+)“ gibt es schon\. Beide Übungen zusammenführen\?$/, function (a, n) { return '“' + n + '” already exists. Merge both exercises?'; }],
+  [/^Übung „(.+)“ löschen\?(?: Sie wird auch aus (\d+) (?:Plan|Plänen) entfernt\.)?$/, function (a, n, k) { return 'Delete exercise “' + n + '”?' + (k ? ' It will also be removed from ' + k + (k === '1' ? ' plan.' : ' plans.') : ''); }]
+];
+function tr(s) {
+  if (LANG !== 'en' || typeof s !== 'string') return s;
+  var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s), c = m[2];
+  if (!c) return s;
+  if (EN[c] !== undefined) return m[1] + EN[c] + m[3];
+  for (var i = 0; i < PAT.length; i++) { var r = PAT[i][0].exec(c); if (r) return m[1] + PAT[i][1].apply(null, r) + m[3]; }
+  return s;
+}
+var ORIG = new WeakMap(), CUR = new WeakMap(), ATTRS = ['placeholder', 'aria-label', 'title', 'label'];
+function trText(n) {
+  var v = n.nodeValue, de = CUR.get(n) === v ? ORIG.get(n) : v, out = LANG === 'en' ? tr(de) : de;
+  if (out !== v) n.nodeValue = out;
+  if (out !== de) { ORIG.set(n, de); CUR.set(n, out); } else { ORIG.delete(n); CUR.delete(n); }
+}
+function trAttrs(el) {
+  ATTRS.forEach(function (a) {
+    if (!el.hasAttribute || !el.hasAttribute(a)) return;
+    var v = el.getAttribute(a), k = '_t' + a, rec = el[k], de = rec && rec[1] === v ? rec[0] : v, out = LANG === 'en' ? tr(de) : de;
+    if (out !== v) el.setAttribute(a, out);
+    el[k] = out !== de ? [de, out] : null;
+  });
+}
+function trAll(root) {
+  var w = document.createTreeWalker(root, 5), n;
+  while ((n = w.nextNode())) {
+    if (n.nodeType === 3) { var p = n.parentNode && n.parentNode.nodeName; if (p !== 'SCRIPT' && p !== 'STYLE') trText(n); } else trAttrs(n);
+  }
+}
+function applyTheme() {
+  var r = document.documentElement;
+  if (THEME === 'system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', THEME);
+  [].forEach.call(document.querySelectorAll('meta[name=theme-color]'), function (m) {
+    var light = /light/.test(m.media || '');
+    m.content = THEME === 'light' ? '#f2f2f7' : THEME === 'dark' ? '#0d0f12' : (light ? '#f2f2f7' : '#0d0f12');
+  });
+}
+var ICO_SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+var ICO_MOON = '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>';
+function effDark() { return THEME === 'dark' || (THEME === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); }
+function markSegs() {
+  var d = effDark();
+  document.querySelector('#langtxt').textContent = LANG.toUpperCase();
+  document.querySelector('#themeico').innerHTML = d ? ICO_MOON : ICO_SUN;
+  document.querySelector('#themebtn').setAttribute('aria-label', d ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln');
+}
+function setLang(l) {
+  LANG = l; try { localStorage.setItem('krafttraining-lang', l); } catch (e) {}
+  document.documentElement.lang = l;
+  trAll(document.body);
+  document.querySelector('#ttl').textContent = TITLES[document.body.dataset.t] || '';
+  refreshAll(); markSegs();
+}
+function startI18n() {
+  document.documentElement.lang = LANG;
+  ['confirm', 'prompt', 'alert'].forEach(function (k) { var o = window[k]; window[k] = function (m, d) { return o.call(window, tr(m), d); }; });
+  document.querySelector('#langbtn').addEventListener('click', function () { setLang(LANG === 'de' ? 'en' : 'de'); });
+  document.querySelector('#themebtn').addEventListener('click', function () {
+    THEME = effDark() ? 'light' : 'dark'; try { localStorage.setItem('krafttraining-theme', THEME); } catch (e) {}
+    applyTheme(); markSegs();
+  });
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (THEME === 'system') markSegs(); });
+  applyTheme(); markSegs(); trAll(document.body);
+  new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      if (m.type === 'characterData') trText(m.target);
+      else if (m.type === 'attributes') trAttrs(m.target);
+      else m.addedNodes.forEach(function (n) { if (n.nodeType === 3) trText(n); else if (n.nodeType === 1) { trAttrs(n); trAll(n); } });
+    });
+  }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+}
 var KEY = 'krafttraining-v1';
 var NEW = '__new';
 var adding = false;
@@ -292,7 +581,7 @@ try { var r = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(r)) entri
 
 function save() { try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch (e) {} }
 function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-function fmt(n) { return Number(n).toLocaleString('de-DE', { maximumFractionDigits: 2 }); }
+function fmt(n) { return Number(n).toLocaleString(LANG === 'en' ? 'en-US' : 'de-DE', { maximumFractionDigits: 2 }); }
 function day(d) { var p = d.split('-'); return p[2] + '.' + p[1] + '.'; }
 function say(t) { $('#msg').textContent = t; }
 
@@ -420,7 +709,7 @@ function card(g) {
 
 function render() {
   $('#sub').textContent = entries.length + (entries.length === 1 ? ' Satz' : ' Sätze') + ' erfasst';
-  renderPlans(); renderToday(); renderStats(); renderManage();
+  renderPlans(); renderToday(); renderStats(); renderManage(); renderStatus();
   var gs = groups();
   if (!gs.length) { $('#list').innerHTML = '<p class="empty">Noch keine Einträge.</p>'; return; }
   $('#list').innerHTML = GROUPS.concat(['']).map(function (grp) {
@@ -462,8 +751,9 @@ $('#save').addEventListener('click', function () {
   var match = groups().filter(function (g) { return g.ex.toLowerCase() === ex.toLowerCase(); })[0];
   var grp = $('#grp').value;
   if (match) { ex = match.ex; grp = match.grp; }
+  var before = snap();
   entries.push({ id: Date.now(), ex: ex, grp: grp, note: $('#note').value.trim(), kg: Number($('#kg').value), reps: Number($('#reps').value), date: $('#date').value });
-  save(); open = ex; startRest();
+  save(); open = ex; startRest(); levelUp(before);
   $('#note').value = '';
   $('#exnew').value = ''; adding = false;
   $('#grp').value = grp;
@@ -475,7 +765,7 @@ $('#save').addEventListener('click', function () {
 function rowAction(t) {
   if (t.dataset.again) {
     var g = groups().filter(function (x) { return x.ex === t.dataset.again; })[0];
-    if (g) { entries.push({ id: Date.now(), ex: g.ex, grp: g.grp, kg: g.last.kg, reps: g.last.reps, note: '', date: today() }); startRest(); }
+    if (g) { var before = snap(); entries.push({ id: Date.now(), ex: g.ex, grp: g.grp, kg: g.last.kg, reps: g.last.reps, note: '', date: today() }); startRest(); levelUp(before); }
   } else if (t.dataset.edit) {
     var id = Number(t.dataset.edit), e = entries.filter(function (x) { return x.id === id; })[0];
     if (!e) return;
@@ -755,7 +1045,47 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '22';
+var VERSION = '26';
+// ---- Status: 10 Punkte je Satz, 30 extra je neue Bestleistung, im Gesamtstatus 25 je Trainingstag ----
+var LV = ['Einsteiger', 'Bronze', 'Silber', 'Gold', 'Platin', 'Diamant', 'Legende'];
+var TH_ALL = [0, 100, 300, 700, 1500, 3000, 6000], TH_GRP = [0, 50, 150, 350, 750, 1500, 3000];
+var LCOL = ['#8e8e93', '#b0703c', '#8f99a6', '#d9a400', '#3fa7bd', '#4f86f7', '#a259e6'];
+function xp() {
+  var per = {}, all = 0, days = {};
+  groups().forEach(function (g) {
+    var x = 0;
+    g.desc.forEach(function (e, i) { x += 10; if (e.pr && i < g.desc.length - 1) x += 30; });
+    per[g.grp] = (per[g.grp] || 0) + x; all += x;
+  });
+  entries.forEach(function (e) { days[e.date] = 1; });
+  return { all: all + Object.keys(days).length * 25, per: per };
+}
+function lvl(x, th) { var i = 0; while (i < th.length - 1 && x >= th[i + 1]) i++; return i; }
+function snap() { var s = xp(), o = { all: lvl(s.all, TH_ALL) }; GROUPS.forEach(function (g) { o[g] = lvl(s.per[g] || 0, TH_GRP); }); return o; }
+function toast(t) {
+  var e = $('#toast'); e.textContent = t; e.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(function () { e.hidden = true; }, 4500);
+}
+function levelUp(b) {
+  var a = snap(), m = [];
+  if (a.all > b.all) m.push('Gesamtstatus ' + LV[a.all]);
+  GROUPS.forEach(function (g) { if (a[g] > b[g]) m.push(g + ' ' + LV[a[g]]); });
+  if (m.length) toast('🎉 Neuer Status: ' + m.join(', '));
+}
+function renderStatus() {
+  var s = xp();
+  var card = function (x, th, name, big) {
+    var i = lvl(x, th), nx = th[i + 1], pct = nx ? Math.round((x - th[i]) / (nx - th[i]) * 100) : 100;
+    return '<div class="st' + (big ? ' big2' : '') + '"><div class="medal" style="background:' + LCOL[i] + '">' + (i + 1) + '</div><div class="stinfo"><div class="sthead"><b>' + name + '</b><span>' + LV[i] + '</span></div>' +
+      '<div class="bar"><i style="width:' + pct + '%"></i></div><small>' + fmt(x) + ' Punkte' + (nx ? ', noch ' + fmt(nx - x) + ' bis ' + LV[i + 1] : ', höchster Status') + '</small></div></div>';
+  };
+  $('#statusbody').innerHTML = card(s.all, TH_ALL, 'Gesamtstatus', true) + '<p class="cap">Muskelgruppen</p>' +
+    GROUPS.map(function (g) { return card(s.per[g] || 0, TH_GRP, g, false); }).join('') +
+    '<p class="cap">So sammelst du Punkte: 10 pro Satz, 30 extra für eine neue Bestleistung, im Gesamtstatus zusätzlich 25 pro Trainingstag.</p>';
+  var i = lvl(s.all, TH_ALL);
+  $('#stchip').innerHTML = '<button class="chipst" type="button"><span class="medal sm" style="background:' + LCOL[i] + '">' + (i + 1) + '</span>' + LV[i] + ', ' + fmt(s.all) + ' Punkte</button>';
+}
+$('#stchip').addEventListener('click', function () { go('stats'); });
 function grpOpts(cur) {
   return GROUPS.map(function (g) { return '<option value="' + g + '"' + (g === cur ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
     '<option value=""' + (cur === '' ? ' selected' : '') + '>' + NONE + '</option>';
@@ -971,6 +1301,7 @@ renderGroupSelect(first ? first.grp : GROUPS[0]);
 renderSelect('');
 render();
 check();
+startI18n();
 </script>
 </body>
 </html>
