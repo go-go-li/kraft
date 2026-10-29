@@ -215,6 +215,12 @@ select:disabled{opacity:.45}
 #topbar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #topbar button:active{transform:scale(.94)}#topbar button:focus-visible{outline:2px solid var(--plate)}
 h1{padding-right:112px;font-size:32px}
+#topbar{left:0;right:0;top:0;padding:calc(8px + env(safe-area-inset-top,0px)) 14px 8px;justify-content:space-between;align-items:center;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);border-bottom:.5px solid var(--line)}
+#tbact{display:flex;gap:8px}
+#topbar #logo{width:40px;height:40px;border-radius:10px;display:block;fill:none;stroke:none}
+#topbar button{background:var(--tint);box-shadow:none}
+h1{padding-right:0;font-size:34px;margin:4px 0 2px}
+.wrap{padding-top:68px}
 @keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){body[data-t] [data-tab]{animation:none}*{transition:none!important}}
 </style>
@@ -235,7 +241,7 @@ h1{padding-right:112px;font-size:32px}
     <div class="fld"><span>Übung</span><div class="exrow"><select id="exsel" aria-label="Übung"></select><button type="button" id="plus" class="plusbtn" aria-label="Eigene Übung hinzufügen">+</button></div><input id="exnew" placeholder="Name der neuen Übung" autocomplete="off" hidden></div>
     <div id="preview"></div>
     <div class="row">
-      <div class="fld"><span>Gewicht (kg)</span><div class="step"><button type="button" data-step="kg:-2.5" aria-label="2,5 kg weniger">−</button><input id="kg" type="number" inputmode="decimal" step="0.5" min="0" aria-label="Gewicht in kg"><button type="button" data-step="kg:2.5" aria-label="2,5 kg mehr">+</button></div></div>
+      <div class="fld"><span id="wlabel">Gewicht (kg)</span><div class="step"><button type="button" id="wminus" data-step="kg:-2.5" aria-label="Gewicht verringern">−</button><input id="kg" type="number" inputmode="decimal" step="0.5" min="0" aria-label="Gewicht"><button type="button" id="wplus" data-step="kg:2.5" aria-label="Gewicht erhöhen">+</button></div></div>
       <div class="fld"><span>Wiederholungen</span><div class="step"><button type="button" data-step="reps:-1" aria-label="Eine weniger">−</button><input id="reps" type="number" inputmode="numeric" step="1" min="1" aria-label="Wiederholungen"><button type="button" data-step="reps:1" aria-label="Eine mehr">+</button></div></div>
       <label>Datum<input id="date" type="date"></label>
       <label>Notiz<input id="note" placeholder="optional" autocomplete="off"></label>
@@ -261,6 +267,11 @@ h1{padding-right:112px;font-size:32px}
     <div id="statbox" style="display:grid;gap:10px"></div>
   </section>
 
+  <section class="backup collapsible" data-tab="data" aria-label="Einheit">
+    <h2>Einheit</h2>
+    <div class="seg" id="unitseg" style="grid-template-columns:1fr 1fr"><button data-unit="kg">Kilogramm (kg)</button><button data-unit="lb">Pfund (lb)</button></div>
+  </section>
+
   <section class="backup collapsible collapsed" data-tab="data" id="managebox" aria-label="Übungen verwalten">
     <h2 class="ch"><button type="button" class="chb" aria-expanded="false" data-coll="managebox">Übungen verwalten<span class="chev" aria-hidden="true"></span></button></h2>
     <p>Tippe auf den Stift einer Muskelgruppe, um ihre Übungen zu bearbeiten oder neue hinzuzufügen.</p>
@@ -282,9 +293,9 @@ h1{padding-right:112px;font-size:32px}
   <p id="ver" data-tab="data" style="font-size:13px;color:var(--mute);margin:8px 4px"></p>
 </div>
 
-<div id="topbar">
+<div id="topbar"><svg id="logo" viewBox="0 0 1024 1024" role="img" aria-label="Krafttraining-Tracker"><rect width="1024" height="1024" rx="230" fill="#1f5fbf"/><g fill="#fff"><rect x="120" y="470" width="784" height="84" rx="40"/><rect x="250" y="250" width="100" height="524" rx="40"/><rect x="674" y="250" width="100" height="524" rx="40"/><rect x="385" y="330" width="70" height="364" rx="30"/><rect x="569" y="330" width="70" height="364" rx="30"/></g></svg><div id="tbact">
   <button id="langbtn" type="button" aria-label="Sprache wechseln"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg><span id="langtxt">DE</span></button>
-  <button id="themebtn" type="button" aria-label="Zum dunklen Modus wechseln"><svg id="themeico" viewBox="0 0 24 24" aria-hidden="true"></svg></button>
+  <button id="themebtn" type="button" aria-label="Zum dunklen Modus wechseln"><svg id="themeico" viewBox="0 0 24 24" aria-hidden="true"></svg></button></div>
 </div>
 
 <div id="toast" role="status" hidden></div>
@@ -301,7 +312,22 @@ h1{padding-right:112px;font-size:32px}
 
 <script>
 // ---- Sprache (Deutsch/Englisch) und Farbschema ----
-var LANG = 'de', THEME = 'system';
+var LANG = 'de', THEME = 'system', UNIT = 'kg', LBF = 2.20462;
+try { UNIT = localStorage.getItem('krafttraining-unit') === 'lb' ? 'lb' : 'kg'; } catch (e) {}
+function W(kg) { return UNIT === 'lb' ? Math.round(kg * LBF * 10) / 10 : kg; }
+function toKg(v) { return UNIT === 'lb' ? Math.round(v / LBF * 1000) / 1000 : v; }
+function applyUnit() {
+  var st = UNIT === 'lb' ? 5 : 2.5;
+  document.querySelector('#wlabel').textContent = 'Gewicht (' + UNIT + ')';
+  document.querySelector('#wminus').dataset.step = 'kg:-' + st; document.querySelector('#wplus').dataset.step = 'kg:' + st;
+  [].forEach.call(document.querySelectorAll('#unitseg button'), function (b) { b.classList.toggle('on', b.dataset.unit === UNIT); });
+}
+function setUnit(u) {
+  var inp = document.querySelector('#kg'), v = inp.value === '' ? null : toKg(Number(String(inp.value).replace(',', '.')));
+  UNIT = u; try { localStorage.setItem('krafttraining-unit', u); } catch (e) {}
+  if (v !== null && isFinite(v)) inp.value = W(v);
+  applyUnit(); refreshAll();
+}
 try { LANG = localStorage.getItem('krafttraining-lang') || 'de'; THEME = localStorage.getItem('krafttraining-theme') || 'system'; } catch (e) {}
 var EN = Object.create(null);
 var DICT = `Training|Workout
@@ -314,7 +340,14 @@ Neuen Satz erfassen|Log a new set
 Muskelgruppe|Muscle group
 Übung|Exercise
 Gewicht (kg)|Weight (kg)
-Gewicht in kg|Weight in kg
+Gewicht (lb)|Weight (lb)
+Gewicht|Weight
+Gewicht verringern|Decrease weight
+Gewicht erhöhen|Increase weight
+Einheit|Unit
+Kilogramm (kg)|Kilograms (kg)
+Pfund (lb)|Pounds (lb)
+Volumen (lb)|Volume (lb)
 Wiederholungen|Reps
 Datum|Date
 Notiz|Note
@@ -456,15 +489,15 @@ function tk(x) { return EN[x] || x; }
 var WDS = /\b(Mo|Di|Mi|Do|Fr|Sa|So)\b/g;
 var PAT = [
   [/^(\d+) (?:Satz|Sätze) erfasst$/, function (a, n) { return n + (n === '1' ? ' set logged' : ' sets logged'); }],
-  [/^Zuletzt (.+) kg × (.+) am (.+)$/, function (a, w, r, d) { return 'Last: ' + w + ' kg × ' + r + ' on ' + d; }],
+  [/^Zuletzt (.+) (kg|lb) × (.+) am (.+)$/, function (a, w, u, r, d) { return 'Last: ' + w + ' ' + u + ' × ' + r + ' on ' + d; }],
   [/^Heute geplant: (.+)$/, function (a, n) { return 'Planned today: ' + n; }],
   [/^(Geplant: .*|Nicht eingeplant.*)$/, function (a) { return a.replace('Geplant: ', 'Scheduled: ').replace('Nicht eingeplant', 'Not scheduled').replace('Zuletzt trainiert: ', 'Last trained: ').replace('Noch nicht trainiert', 'Not trained yet').replace(WDS, tk); }],
   [/^(Mo|Di|Mi|Do|Fr|Sa|So) (\d.*)$/, function (a, d, r) { return tk(d) + ' ' + r; }],
-  [/^(.+) – (\d+) (?:Satz|Sätze), zuletzt (.+) kg × (.+)$/, function (a, e, n, w, r) { return tk(e) + ' – ' + n + (n === '1' ? ' set' : ' sets') + ', last ' + w + ' kg × ' + r; }],
+  [/^(.+) – (\d+) (?:Satz|Sätze), zuletzt (.+) (kg|lb) × (.+)$/, function (a, e, n, w, u, r) { return tk(e) + ' – ' + n + (n === '1' ? ' set' : ' sets') + ', last ' + w + ' ' + u + ' × ' + r; }],
   [/^Frei (\d+)$/, function (a, n) { return 'Free ' + n; }],
   [/^Freies Training: (.+)$/, function (a, l) { return 'Free training: ' + l.split(', ').map(tk).join(', '); }],
   [/^✓ (.+)$/, function (a, n) { return '✓ ' + tk(n); }],
-  [/^Volumen pro Woche \(älteste links\), Spitze (.+) kg$/, function (a, v) { return 'Volume per week (oldest on the left), peak ' + v + ' kg'; }],
+  [/^Volumen pro Woche \(älteste links\), Spitze (.+) (kg|lb)$/, function (a, v, u) { return 'Volume per week (oldest on the left), peak ' + v + ' ' + u; }],
   [/^(.+) Punkte, noch (.+) bis (.+)$/, function (a, p, n, l) { return p + ' points, ' + n + ' to go until ' + tk(l); }],
   [/^(.+) Punkte, höchster Status$/, function (a, p) { return p + ' points, highest status'; }],
   [/^([A-Za-zÄÖÜäöüß]+), ([\d.,]+) Punkte$/, function (a, l, p) { return tk(l) + ', ' + p + ' points'; }],
@@ -536,6 +569,7 @@ function setLang(l) {
 function startI18n() {
   document.documentElement.lang = LANG;
   ['confirm', 'prompt', 'alert'].forEach(function (k) { var o = window[k]; window[k] = function (m, d) { return o.call(window, tr(m), d); }; });
+  document.querySelector('#unitseg').addEventListener('click', function (ev) { var b = ev.target.closest('[data-unit]'); if (b && b.dataset.unit !== UNIT) setUnit(b.dataset.unit); });
   document.querySelector('#langbtn').addEventListener('click', function () { setLang(LANG === 'de' ? 'en' : 'de'); });
   document.querySelector('#themebtn').addEventListener('click', function () {
     THEME = effDark() ? 'light' : 'dark'; try { localStorage.setItem('krafttraining-theme', THEME); } catch (e) {}
@@ -688,23 +722,23 @@ function currentEx() { return adding ? $('#exnew').value.trim() : $('#exsel').va
 function card(g) {
   var isOpen = open === g.ex;
   var d = g.delta === null ? '' :
-    '<span>Veränderung <b class="' + (g.delta > 0 ? 'up' : g.delta < 0 ? 'down' : '') + '">' + (g.delta > 0 ? '+' : '') + fmt(g.delta) + ' kg</b></span>';
+    '<span>Veränderung <b class="' + (g.delta > 0 ? 'up' : g.delta < 0 ? 'down' : '') + '">' + (g.delta > 0 ? '+' : '') + fmt(W(g.delta)) + ' ' + UNIT + '</b></span>';
   var spark = g.points ? '<svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + g.points + '" fill="none" stroke="var(--plate)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>' : '';
   var key = animKey(g.ex);
   var fig = isOpen && key ? '<div class="figwrap">' + figSvg(key) + '</div>' : '';
-  var next = g.last.reps >= 8 ? fmt(g.last.kg + 2.5) + ' kg' : fmt(g.last.kg) + ' kg × ' + (g.last.reps + 1);
+  var next = g.last.reps >= 8 ? fmt(W(g.last.kg) + (UNIT === 'lb' ? 5 : 2.5)) + ' ' + UNIT : fmt(W(g.last.kg)) + ' ' + UNIT + ' × ' + (g.last.reps + 1);
   var assign = '';
   var hist = !isOpen ? '' : '<ul class="hist">' + g.desc.map(function (e) {
-    return '<li><span>' + day(e.date) + '</span><span>' + fmt(e.kg) + ' kg × ' + e.reps + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span>' +
+    return '<li><span>' + day(e.date) + '</span><span>' + fmt(W(e.kg)) + ' ' + UNIT + ' × ' + e.reps + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span>' +
       (e.pr ? '<span class="dot" title="Neue Bestleistung"></span>' : '<span></span>') +
       '<span><button class="del" data-edit="' + e.id + '">Ändern</button><button class="del" data-del="' + e.id + '" aria-label="Satz vom ' + day(e.date) + ' löschen">Löschen</button></span></li>';
   }).join('') + '</ul>';
   return '<article class="card">' +
     '<button class="head" data-ex="' + esc(g.ex) + '" aria-expanded="' + isOpen + '">' +
     '<span class="name">' + esc(g.ex) + '</span>' +
-    '<span class="last">Zuletzt ' + fmt(g.last.kg) + ' kg × ' + g.last.reps + ' am ' + day(g.last.date) + '</span>' +
-    '<span class="big">' + fmt(g.last.kg) + '<small>kg</small></span></button>' +
-    '<div class="meta"><span>Bestleistung <b>' + fmt(g.pr) + ' kg</b></span><span>Geschätztes Max <b>' + fmt(Math.round(g.e1 * 2) / 2) + ' kg</b></span>' + d + '<span>Nächstes Mal <b>' + next + '</b></span><button class="mini" data-again="' + esc(g.ex) + '">Gleicher Satz</button></div>' + spark + fig + assign + hist + '</article>';
+    '<span class="last">Zuletzt ' + fmt(W(g.last.kg)) + ' ' + UNIT + ' × ' + g.last.reps + ' am ' + day(g.last.date) + '</span>' +
+    '<span class="big">' + fmt(W(g.last.kg)) + '<small>' + UNIT + '</small></span></button>' +
+    '<div class="meta"><span>Bestleistung <b>' + fmt(W(g.pr)) + ' ' + UNIT + '</b></span><span>Geschätztes Max <b>' + fmt(W(Math.round(g.e1 * 2) / 2)) + ' ' + UNIT + '</b></span>' + d + '<span>Nächstes Mal <b>' + next + '</b></span><button class="mini" data-again="' + esc(g.ex) + '">Gleicher Satz</button></div>' + spark + fig + assign + hist + '</article>';
 }
 
 function render() {
@@ -729,7 +763,7 @@ function check() { $('#save').disabled = !valid(); }
 function prefill() {
   var ex = $('#exsel').value;
   var g = groups().filter(function (x) { return x.ex === ex; })[0];
-  if (g) { $('#kg').value = g.last.kg; $('#reps').value = g.last.reps; }
+  if (g) { $('#kg').value = W(g.last.kg); $('#reps').value = g.last.reps; }
   else { $('#kg').value = ''; $('#reps').value = ''; }
 }
 
@@ -752,7 +786,7 @@ $('#save').addEventListener('click', function () {
   var grp = $('#grp').value;
   if (match) { ex = match.ex; grp = match.grp; }
   var before = snap();
-  entries.push({ id: Date.now(), ex: ex, grp: grp, note: $('#note').value.trim(), kg: Number($('#kg').value), reps: Number($('#reps').value), date: $('#date').value });
+  entries.push({ id: Date.now(), ex: ex, grp: grp, note: $('#note').value.trim(), kg: toKg(Number($('#kg').value)), reps: Number($('#reps').value), date: $('#date').value });
   save(); open = ex; startRest(); levelUp(before);
   $('#note').value = '';
   $('#exnew').value = ''; adding = false;
@@ -769,12 +803,12 @@ function rowAction(t) {
   } else if (t.dataset.edit) {
     var id = Number(t.dataset.edit), e = entries.filter(function (x) { return x.id === id; })[0];
     if (!e) return;
-    var kg = prompt('Gewicht (kg)', e.kg); if (kg === null) return;
+    var kg = prompt('Gewicht (' + UNIT + ')', W(e.kg)); if (kg === null) return;
     var reps = prompt('Wiederholungen', e.reps); if (reps === null) return;
     var note = prompt('Notiz', e.note || ''); if (note === null) return;
     kg = Number(String(kg).replace(',', '.')); reps = Number(reps);
     if (!(kg >= 0) || !(reps >= 1)) return;
-    e.kg = kg; e.reps = reps; e.note = note.trim();
+    e.kg = toKg(kg); e.reps = reps; e.note = note.trim();
   } else if (t.dataset.rename) {
     var old = t.dataset.rename, nn = prompt('Neuer Name', old);
     if (!nn || !nn.trim()) return;
@@ -967,7 +1001,7 @@ function dayDetail(ds, m, inP) {
   var line = function (ex) {
     var es = entries.filter(function (e) { return e.date === ds && e.ex === ex; }), l = es[es.length - 1];
     shown[ex] = 1;
-    return '<div>' + esc(ex) + ' – ' + es.length + (es.length === 1 ? ' Satz' : ' Sätze') + ', zuletzt ' + fmt(l.kg) + ' kg × ' + l.reps + '</div>';
+    return '<div>' + esc(ex) + ' – ' + es.length + (es.length === 1 ? ' Satz' : ' Sätze') + ', zuletzt ' + fmt(W(l.kg)) + ' ' + UNIT + ' × ' + l.reps + '</div>';
   };
   plans.forEach(function (p) {
     var st = planStat(p, ds, m); if (!st || !st.ok) return;
@@ -1045,7 +1079,7 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '26';
+var VERSION = '27';
 // ---- Status: 10 Punkte je Satz, 30 extra je neue Bestleistung, im Gesamtstatus 25 je Trainingstag ----
 var LV = ['Einsteiger', 'Bronze', 'Silber', 'Gold', 'Platin', 'Diamant', 'Legende'];
 var TH_ALL = [0, 100, 300, 700, 1500, 3000, 6000], TH_GRP = [0, 50, 150, 350, 750, 1500, 3000];
@@ -1264,11 +1298,11 @@ function renderStats() {
   var prs = 0;
   gs.forEach(function (g) { g.desc.forEach(function (e, i) { if (e.pr && i < g.desc.length - 1 && e.date >= cut) prs++; }); });
   var vals = keys.map(function (k) { return byW[k] || 0; }), max = Math.max.apply(null, vals);
-  var h = '<div class="kpis">' + [[Object.keys(days).length, 'Trainingstage'], [inp.length, 'Sätze'], [fmt(Math.round(vol)), 'Volumen (kg)'], [prs, 'Bestleistungen']]
+  var h = '<div class="kpis">' + [[Object.keys(days).length, 'Trainingstage'], [inp.length, 'Sätze'], [fmt(Math.round(W(vol))), 'Volumen (' + UNIT + ')'], [prs, 'Bestleistungen']]
     .map(function (k) { return '<div><b>' + k[0] + '</b><span>' + k[1] + '</span></div>'; }).join('') + '</div>';
   if (max > 0) {
     var bw = 200 / keys.length;
-    h += '<p class="cap">Volumen pro Woche (älteste links), Spitze ' + fmt(Math.round(max)) + ' kg</p><svg class="wk" viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden="true">' +
+    h += '<p class="cap">Volumen pro Woche (älteste links), Spitze ' + fmt(Math.round(W(max))) + ' ' + UNIT + '</p><svg class="wk" viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden="true">' +
       vals.map(function (v, i) {
         var hh = Math.max(v / max * 60, v ? 2 : 0.8);
         return '<rect x="' + (i * bw + 1).toFixed(1) + '" y="' + (62 - hh).toFixed(1) + '" width="' + Math.max(bw - 2, 1).toFixed(1) + '" height="' + hh.toFixed(1) + '" rx="1.5" fill="var(--plate)" opacity="' + (v ? 1 : 0.25) + '"/>';
@@ -1277,7 +1311,7 @@ function renderStats() {
   var gk = Object.keys(byG).sort(function (a, b) { return byG[b] - byG[a]; });
   if (gk.length && byG[gk[0]] > 0) {
     h += '<p class="cap">Volumen je Muskelgruppe</p>' + gk.map(function (k) {
-      return '<div class="gbar"><span>' + (k || NONE) + '</span><i style="width:' + (byG[k] / byG[gk[0]] * 100).toFixed(0) + '%"></i><em>' + fmt(Math.round(byG[k])) + ' kg</em></div>';
+      return '<div class="gbar"><span>' + (k || NONE) + '</span><i style="width:' + (byG[k] / byG[gk[0]] * 100).toFixed(0) + '%"></i><em>' + fmt(Math.round(W(byG[k]))) + ' ' + UNIT + '</em></div>';
     }).join('');
   }
   box.innerHTML = h;
@@ -1301,6 +1335,7 @@ renderGroupSelect(first ? first.grp : GROUPS[0]);
 renderSelect('');
 render();
 check();
+applyUnit();
 startI18n();
 </script>
 </body>
