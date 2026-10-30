@@ -145,7 +145,7 @@ h1{font-size:34px;font-weight:700;margin:14px 0 2px}
 input,select{background:var(--bg);border:0;border-radius:12px;padding:0 14px;min-height:50px}
 .step button{border:0;border-radius:12px}
 input:focus-visible,select:focus-visible{outline:2px solid var(--plate);outline-offset:0}
-.primary{border-radius:14px;font-size:18px;font-weight:600;box-shadow:0 4px 12px rgba(31,95,191,.25)}
+.primary{border-radius:14px;font-size:18px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.18)}
 .sec{background:var(--tint);color:var(--plate);border:0;border-radius:14px;font-weight:600}
 .mini{background:var(--tint);border:0;border-radius:999px;padding:8px 14px;font-weight:600}
 .chip{border:0;background:var(--tint);color:var(--plate)}
@@ -241,6 +241,13 @@ h1{padding-right:0;font-size:34px;margin:4px 0 2px}
 .carousel>.card{flex:0 0 100%;box-sizing:border-box;scroll-snap-align:center}
 .carousel{align-items:flex-start}
 .fbar{position:sticky;bottom:calc(68px + env(safe-area-inset-bottom,0px));z-index:6;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);padding:10px;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.18);margin-top:8px}
+.swatches{display:flex;flex-wrap:wrap;gap:12px}
+.sw{all:unset;box-sizing:border-box;position:relative;width:40px;height:40px;border-radius:50%;cursor:pointer;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.14)}
+.sw.on{outline:3px solid var(--ink);outline-offset:2px}
+.sw:focus-visible{outline:3px solid var(--plate);outline-offset:2px}
+.sw input{position:absolute;inset:0;width:100%;height:100%;min-height:0;padding:0;border:0;opacity:0;cursor:pointer}
+#topbar #logo>rect{fill:var(--plate)}
+#topbar #logo>g{fill:var(--onplate)}
 @keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){body[data-t] [data-tab]{animation:none}*{transition:none!important}}
 </style>
@@ -305,6 +312,25 @@ h1{padding-right:0;font-size:34px;margin:4px 0 2px}
     </div>
     <input id="file" type="file" accept="application/json,.json" hidden>
     <div id="msg" role="status"></div>
+  </section>
+
+  <section class="backup collapsible collapsed" data-tab="data" id="designbox" aria-label="Design">
+    <h2 class="ch"><button type="button" class="chb" aria-expanded="false" data-coll="designbox">Design<span class="chev" aria-hidden="true"></span></button></h2>
+    <p class="cap">Akzentfarbe</p>
+    <div class="swatches" id="accents">
+      <button type="button" class="sw" data-c="#1f5fbf" style="background:#1f5fbf" aria-label="Blau"></button>
+      <button type="button" class="sw" data-c="#1f8a4c" style="background:#1f8a4c" aria-label="Grün"></button>
+      <button type="button" class="sw" data-c="#d96b0b" style="background:#d96b0b" aria-label="Orange"></button>
+      <button type="button" class="sw" data-c="#d23a3a" style="background:#d23a3a" aria-label="Rot"></button>
+      <button type="button" class="sw" data-c="#7a4bd6" style="background:#7a4bd6" aria-label="Violett"></button>
+      <button type="button" class="sw" data-c="#0f8b9e" style="background:#0f8b9e" aria-label="Türkis"></button>
+      <button type="button" class="sw" data-c="#d63d85" style="background:#d63d85" aria-label="Pink"></button>
+      <button type="button" class="sw" data-c="#4b5563" style="background:#4b5563" aria-label="Graphit"></button>
+      <span class="sw" id="swc" style="background:conic-gradient(#e53935,#fdd835,#43a047,#00acc1,#3949ab,#d81b60,#e53935)"><input type="color" id="accentpick" value="#1f5fbf" aria-label="Eigene Farbe"></span>
+    </div>
+    <p class="cap">Hintergrund</p>
+    <div class="seg" id="bgseg" style="grid-template-columns:repeat(4,1fr)"><button type="button" data-bg="std">Standard</button><button type="button" data-bg="warm">Warm</button><button type="button" data-bg="cool">Kühl</button><button type="button" data-bg="nature">Natur</button></div>
+    <button class="sec" id="designreset" type="button">Zurücksetzen</button>
   </section>
 
   <p id="ver" data-tab="data" style="font-size:13px;color:var(--mute);margin:8px 4px"></p>
@@ -467,6 +493,18 @@ Sicherung heruntergeladen.|Backup downloaded.
 CSV bereit.|CSV ready.
 Die Datei konnte nicht gelesen werden. Wähle eine Sicherung aus diesem Tracker.|The file could not be read. Choose a backup from this tracker.
 Pause|Rest
+Akzentfarbe|Accent color
+Eigene Farbe|Custom color
+Hintergrund|Background
+Kühl|Cool
+Natur|Nature
+Zurücksetzen|Reset
+Blau|Blue
+Grün|Green
+Rot|Red
+Violett|Purple
+Türkis|Teal
+Graphit|Graphite
 Stopp|Stop
 Los!|Go!
 Plan löschen? Deine Sätze bleiben erhalten.|Delete plan? Your sets will be kept.
@@ -563,17 +601,63 @@ function trAll(root) {
     if (n.nodeType === 3) { var p = n.parentNode && n.parentNode.nodeName; if (p !== 'SCRIPT' && p !== 'STYLE') trText(n); } else trAttrs(n);
   }
 }
+// ---- Design: Akzentfarbe und Hintergrund ----
+var BGS = { std: ['#f2f2f7', '#ffffff', '#0d0f12', '#181b20'], warm: ['#f6f1e9', '#fffdf9', '#15120e', '#1f1b16'], cool: ['#edf2f8', '#fbfdff', '#0b1118', '#151d27'], nature: ['#edf4ee', '#fbfefb', '#0c130e', '#16201a'] };
+var DEF_ACC = '#1f5fbf', DESIGN = { accent: DEF_ACC, bg: 'std' };
+try {
+  var dj = JSON.parse(localStorage.getItem('krafttraining-design'));
+  if (dj && typeof dj === 'object') DESIGN = { accent: /^#[0-9a-f]{6}$/i.test(dj.accent) ? dj.accent : DEF_ACC, bg: BGS[dj.bg] ? dj.bg : 'std' };
+} catch (e) {}
+function hex2rgb(h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+function rgb2hex(a) { return '#' + a.map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''); }
+function mix(a, b, t) { var x = hex2rgb(a), y = hex2rgb(b); return rgb2hex(x.map(function (v, i) { return v * (1 - t) + y[i] * t; })); }
+function lum(h) { var c = hex2rgb(h).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+function onC(h) { return lum(h) > 0.4 ? '#14181d' : '#ffffff'; }
+function designCSS(d) {
+  var B = BGS[d.bg] || BGS.std, def = d.accent.toLowerCase() === DEF_ACC;
+  if (def && d.bg === 'std') return '';
+  var L = def ? DEF_ACC : (lum(d.accent) > 0.5 ? mix(d.accent, '#000000', 0.35) : d.accent), D = def ? '#6aa6ff' : mix(d.accent, '#ffffff', 0.35);
+  var gl = function (h) { return 'rgba(' + hex2rgb(h).join(',') + ',.82)'; };
+  var l = '--plate:' + L + ';--tint:' + (def ? '#e6eefb' : mix(L, '#ffffff', 0.88)) + ';--onplate:' + (def ? '#ffffff' : onC(L)) + ';--bg:' + B[0] + ';--card:' + B[1] + ';--glass:' + gl(B[1]);
+  var k = '--plate:' + D + ';--tint:' + (def ? '#1d2b43' : mix(D, '#0d0f12', 0.8)) + ';--onplate:' + (def ? '#0b1730' : onC(D)) + ';--bg:' + B[2] + ';--card:' + B[3] + ';--glass:' + gl(B[3]);
+  return ':root{' + l + '}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){' + k + '}}:root[data-theme="light"]{' + l + '}:root[data-theme="dark"]{' + k + '}';
+}
+function applyDesign() {
+  var st = document.getElementById('userstyle');
+  if (!st) { st = document.createElement('style'); st.id = 'userstyle'; document.head.appendChild(st); }
+  st.textContent = designCSS(DESIGN); applyTheme();
+}
+function markDesign() {
+  var a = DESIGN.accent.toLowerCase(), hit = false;
+  [].forEach.call(document.querySelectorAll('#accents .sw[data-c]'), function (b) { var on = b.dataset.c === a; if (on) hit = true; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  document.querySelector('#swc').classList.toggle('on', !hit);
+  document.querySelector('#accentpick').value = a;
+  [].forEach.call(document.querySelectorAll('#bgseg button'), function (b) { b.classList.toggle('on', b.dataset.bg === DESIGN.bg); });
+}
+function setDesign(patch) {
+  for (var k in patch) DESIGN[k] = patch[k];
+  try { localStorage.setItem('krafttraining-design', JSON.stringify(DESIGN)); } catch (e) {}
+  applyDesign(); markDesign();
+}
+function startDesign() {
+  document.querySelector('#accents').addEventListener('click', function (ev) { var b = ev.target.closest('.sw[data-c]'); if (b) setDesign({ accent: b.dataset.c }); });
+  document.querySelector('#accentpick').addEventListener('input', function () { setDesign({ accent: this.value }); });
+  document.querySelector('#bgseg').addEventListener('click', function (ev) { var b = ev.target.closest('[data-bg]'); if (b) setDesign({ bg: b.dataset.bg }); });
+  document.querySelector('#designreset').addEventListener('click', function () { setDesign({ accent: DEF_ACC, bg: 'std' }); });
+  markDesign();
+}
 function applyTheme() {
   var r = document.documentElement;
   if (THEME === 'system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', THEME);
   [].forEach.call(document.querySelectorAll('meta[name=theme-color]'), function (m) {
     var light = /light/.test(m.media || '');
-    m.content = THEME === 'light' ? '#f2f2f7' : THEME === 'dark' ? '#0d0f12' : (light ? '#f2f2f7' : '#0d0f12');
+    var B = BGS[DESIGN.bg] || BGS.std; m.content = THEME === 'light' ? B[0] : THEME === 'dark' ? B[2] : (light ? B[0] : B[2]);
   });
 }
 var ICO_SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
 var ICO_MOON = '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>';
 function effDark() { return THEME === 'dark' || (THEME === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); }
+applyDesign();
 function markSegs() {
   var d = effDark();
   document.querySelector('#langtxt').textContent = LANG.toUpperCase();
@@ -597,6 +681,7 @@ function startI18n() {
     applyTheme(); markSegs();
   });
   if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (THEME === 'system') markSegs(); });
+  startDesign();
   applyTheme(); markSegs(); trAll(document.body);
   new MutationObserver(function (ms) {
     ms.forEach(function (m) {
@@ -1135,7 +1220,7 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '33';
+var VERSION = '34';
 // ---- Status: 10 Punkte je Satz, 30 extra je neue Bestleistung, im Gesamtstatus 25 je Trainingstag ----
 var LV = ['Einsteiger', 'Bronze', 'Silber', 'Gold', 'Platin', 'Diamant', 'Legende'];
 var TH_ALL = [0, 100, 300, 700, 1500, 3000, 6000], TH_GRP = [0, 50, 150, 350, 750, 1500, 3000];
