@@ -156,7 +156,6 @@ input:focus-visible,select:focus-visible{outline:2px solid var(--plate);outline-
 .seg button{all:unset;box-sizing:border-box;text-align:center;padding:10px 4px;border-radius:9px;font-size:14px;font-weight:600;color:var(--mute);cursor:pointer}
 .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18)}
 .seg button:focus-visible{outline:2px solid var(--plate)}
-section[aria-label="Trainingspläne"]>h2,section[aria-label="Auswertung"]>h2{display:none}
 #tabs{background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);border-top:.5px solid var(--line);padding-top:6px}
 #tabs button{gap:3px;font-size:10px}
 #tabs .ic{display:grid;place-items:center;width:52px;height:30px;border-radius:15px;margin:0 auto;transition:background .2s}
@@ -222,7 +221,6 @@ h1{padding-right:112px;font-size:32px}
 h1{padding-right:0;font-size:34px;margin:4px 0 2px}
 .wrap{padding-top:68px}
 #ttl,#sub{display:none}
-section[aria-label="Status"]>h2{display:none}
 .carousel{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:0 -4px;padding:4px 4px 12px}
 .carousel::-webkit-scrollbar{display:none}
 .carousel>.st{flex:0 0 100%;box-sizing:border-box;scroll-snap-align:center}
@@ -272,19 +270,16 @@ section[aria-label="Status"]>h2{display:none}
   </section>
 
   <section class="backup" data-tab="plans" aria-label="Trainingspläne">
-    <h2>Trainingspläne</h2>
     <div id="plansbox" style="display:grid;gap:12px"></div>
   </section>
 
   <div id="list" class="list" data-tab="list"></div>
 
   <section class="backup" data-tab="stats" aria-label="Status">
-    <h2>Status</h2>
     <div id="statusbody" style="display:grid;gap:10px"></div>
   </section>
 
   <section class="backup" data-tab="stats" aria-label="Auswertung">
-    <h2>Auswertung</h2>
     <div class="seg" id="per" data-v="4" role="group" aria-label="Zeitraum"><button data-v="4" class="on">4 Wochen</button><button data-v="12">12 Wochen</button><button data-v="0">Alles</button></div>
     <div id="statbox" style="display:grid;gap:10px"></div>
   </section>
@@ -407,7 +402,7 @@ Trainingseinheiten|Training sessions
 Alle anzeigen|Show all
 Tag anzeigen|Show day
 Für diesen Tag ist kein Plan eingeplant.|No plan scheduled for this day.
-Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.|No plan yet. Create e.g. Push, Pull and Legs. Tapping an exercise in a plan selects it above for logging.
+Noch kein Plan. Tippe auf „+ Neuer Plan“ um einen Plan zu erstellen.|No plan yet. Tap “+ New plan” to create a plan.
 + Neuer Plan|+ New plan
 Bearbeiten|Edit
 Löschen|Delete
@@ -1140,7 +1135,7 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '31';
+var VERSION = '33';
 // ---- Status: 10 Punkte je Satz, 30 extra je neue Bestleistung, im Gesamtstatus 25 je Trainingstag ----
 var LV = ['Einsteiger', 'Bronze', 'Silber', 'Gold', 'Platin', 'Diamant', 'Legende'];
 var TH_ALL = [0, 100, 300, 700, 1500, 3000, 6000], TH_GRP = [0, 50, 150, 350, 750, 1500, 3000];
@@ -1325,11 +1320,11 @@ function renderPlans() {
     h += plans.length
       ? '<div class="carousel" id="plcar">' + plans.map(card).join('') + '</div><div class="dots" id="pldots">' +
         plans.map(function (p, i) { return '<button type="button" data-pi="' + i + '" aria-label="' + esc(p.name) + '"' + (i === plIdx ? ' class="on"' : '') + '></button>'; }).join('') + '</div>'
-      : '<p>Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.</p>';
+      : '<p>Noch kein Plan. Tippe auf „+ Neuer Plan“ um einen Plan zu erstellen.</p>';
   } else {
     var wd = wdx(selDay), sched = plans.filter(function (p) { return (p.days || []).indexOf(wd) > -1; });
     h += dayDetail(selDay, m, planned()) +
-      (sched.length ? sched.map(card).join('') : '<p>Für diesen Tag ist kein Plan eingeplant.</p>');
+      (sched.length ? sched.map(card).join('') : '<p>' + (plans.length ? 'Für diesen Tag ist kein Plan eingeplant.' : 'Noch kein Plan. Tippe auf „+ Neuer Plan“ um einen Plan zu erstellen.') + '</p>');
   }
   box.innerHTML = h + renderLog(m);
   var pc = document.querySelector('#plcar');
