@@ -1,5 +1,5 @@
-// Bei Änderungen an der App den Namen hochzählen (kraft-v30 ...), damit alte Dateien ersetzt werden.
-var CACHE = 'kraft-v30';
+// Bei Änderungen an der App den Namen hochzählen (kraft-v31 ...), damit alte Dateien ersetzt werden.
+var CACHE = 'kraft-v31';
 var FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {

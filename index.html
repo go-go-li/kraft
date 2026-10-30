@@ -1068,7 +1068,8 @@ function dayDetail(ds, m, inP) {
   if (fl.length) rows.push('<b>Freies Training</b>' + fl.map(line).join(''));
   var rest = Object.keys(d).filter(function (x) { return !shown[x]; });
   if (rest.length) rows.push('<b>Weitere Übungen</b>' + rest.map(line).join(''));
-  return '<div class="card dd"><p class="cap" style="margin:0 0 6px">' + WD[wdx(ds)] + ' ' + day(ds) + '</p>' + (rows.length ? rows.join('<hr>') : '<span class="last">Kein Training.</span>') + '</div>';
+  if (!rows.length) return '';
+  return '<div class="card dd"><p class="cap" style="margin:0 0 6px">' + WD[wdx(ds)] + ' ' + day(ds) + '</p>' + rows.join('<hr>') + '</div>';
 }
 function freeN(ds, m, inP) { return Object.keys(m[ds] || {}).filter(function (x) { return !inP[x]; }).length; }
 function lastDone(p, m) { var best = ''; Object.keys(m).forEach(function (ds) { var st = planStat(p, ds, m); if (st && st.ok && ds > best) best = ds; }); return best; }
@@ -1139,7 +1140,7 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '30';
+var VERSION = '31';
 // ---- Status: 10 Punkte je Satz, 30 extra je neue Bestleistung, im Gesamtstatus 25 je Trainingstag ----
 var LV = ['Einsteiger', 'Bronze', 'Silber', 'Gold', 'Platin', 'Diamant', 'Legende'];
 var TH_ALL = [0, 100, 300, 700, 1500, 3000, 6000], TH_GRP = [0, 50, 150, 350, 750, 1500, 3000];
@@ -1318,7 +1319,7 @@ function renderPlans() {
     return '<article class="card plan"><h3>' + esc(p.name) + '</h3><div class="last" style="padding:0 14px 8px">' + planInfo(p, m) + '</div><div class="chips">' + (chips || '<span class="last">Keine Übungen</span>') +
       '</div><div class="acts"><button class="mini" data-pedit="' + p.id + '">Bearbeiten</button><button class="mini" data-pdel="' + p.id + '">Löschen</button></div></article>';
   };
-  var h = '<div class="ptop"><button class="sec" id="newplan">+ Neuer Plan</button><button class="sec' + (plShowAll ? ' on' : '') + '" id="plall" aria-pressed="' + plShowAll + '">' + (plShowAll ? 'Tag anzeigen' : 'Alle anzeigen') + '</button></div>' + renderWeek(m);
+  var h = renderWeek(m) + '<div class="ptop"><button class="sec" id="newplan">+ Neuer Plan</button><button class="sec' + (plShowAll ? ' on' : '') + '" id="plall" aria-pressed="' + plShowAll + '">' + (plShowAll ? 'Tag anzeigen' : 'Alle anzeigen') + '</button></div>';
   if (plIdx >= plans.length) plIdx = 0;
   if (plShowAll) {
     h += plans.length
@@ -1327,7 +1328,7 @@ function renderPlans() {
       : '<p>Noch kein Plan. Lege z. B. Push, Pull und Beine an. Ein Tipp auf eine Übung im Plan wählt sie oben zum Eintragen aus.</p>';
   } else {
     var wd = wdx(selDay), sched = plans.filter(function (p) { return (p.days || []).indexOf(wd) > -1; });
-    h += '<p class="cap">Trainingseinheiten</p>' + dayDetail(selDay, m, planned()) + '<p class="cap">Pläne</p>' +
+    h += dayDetail(selDay, m, planned()) +
       (sched.length ? sched.map(card).join('') : '<p>Für diesen Tag ist kein Plan eingeplant.</p>');
   }
   box.innerHTML = h + renderLog(m);
