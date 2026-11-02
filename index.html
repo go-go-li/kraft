@@ -321,6 +321,12 @@ body[data-t] [data-tab]{animation:fin .32s cubic-bezier(.2,.8,.2,1)}
 .urow{display:flex;align-items:center;gap:10px}
 .urow small{color:var(--plate);font-weight:700}
 .uact{display:flex;gap:8px;flex-wrap:wrap}
+.barchips{display:flex;flex-wrap:wrap;gap:8px}
+.bchip{all:unset;box-sizing:border-box;padding:9px 14px;border-radius:999px;background:rgba(var(--plate-rgb),.11);color:var(--plate);font-weight:600;font-size:14px;cursor:pointer}
+.bchip.on{background:var(--plate);color:var(--onplate)}
+.bchip:focus-visible{outline:2px solid var(--plate)}
+#totline{margin:0;font-size:14px;font-weight:600;color:var(--mute)}
+#totline[hidden],#barrow[hidden]{display:none}
 @keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){body[data-t] [data-tab]{animation:none}*{transition:none!important}}
 
@@ -378,12 +384,14 @@ input:focus-visible,select:focus-visible{outline:none;border-color:var(--plate);
     </label>
     <div class="fld"><span>Übung</span><div class="exrow"><select id="exsel" aria-label="Übung"></select><button type="button" id="plus" class="plusbtn" aria-label="Eigene Übung hinzufügen">+</button></div><input id="exnew" placeholder="Name der neuen Übung" autocomplete="off" hidden></div>
     <div id="preview"></div>
+    <div id="barrow" hidden></div>
     <div class="row">
       <div class="fld"><span id="wlabel">Gewicht (kg)</span><div class="step"><button type="button" id="wminus" data-step="kg:-2.5" aria-label="Gewicht verringern">−</button><input id="kg" type="number" inputmode="decimal" step="0.5" min="0" aria-label="Gewicht"><button type="button" id="wplus" data-step="kg:2.5" aria-label="Gewicht erhöhen">+</button></div></div>
       <div class="fld"><span>Wiederholungen</span><div class="step"><button type="button" data-step="reps:-1" aria-label="Eine weniger">−</button><input id="reps" type="number" inputmode="numeric" step="1" min="1" aria-label="Wiederholungen"><button type="button" data-step="reps:1" aria-label="Eine mehr">+</button></div></div>
       <label>Datum<input id="date" type="date"></label>
       <label>Notiz<input id="note" placeholder="optional" autocomplete="off"></label>
     </div>
+    <p id="totline" hidden></p>
     <button class="primary" id="save" disabled>Satz speichern</button>
   </section>
 
@@ -531,6 +539,42 @@ function startUsers() {
     }
   });
 }
+// ---- Langhantelübungen: Stangengewicht wählen (Scheiben + Stange = Gesamtgewicht) ----
+var BARKEY = 'krafttraining-bar-v1' + SFX, barCfg = {}, BARDEF = {};
+try { var bj = JSON.parse(localStorage.getItem(BARKEY)); if (bj && typeof bj === 'object') barCfg = bj; } catch (e) {}
+['Bankdrücken', 'Schrägbankdrücken', 'Enges Bankdrücken', 'Kniebeuge', 'Kreuzheben', 'Rumänisches Kreuzheben', 'Schulterdrücken', 'Langhantel-Curls', 'Hip Thrust'].forEach(function (n) { BARDEF[n.toLowerCase()] = 1; });
+function saveBar() { try { localStorage.setItem(BARKEY, JSON.stringify(barCfg)); } catch (e) {} }
+function isBar(ex) { var l = String(ex).toLowerCase(), c = barCfg[l]; return c ? !!c.on : !!BARDEF[l]; }
+function barW(ex) { var c = barCfg[String(ex).toLowerCase()]; return c && c.w != null ? c.w : 20; }
+function curBar() { var ex = document.querySelector('#exsel').value; return !adding && ex && isBar(ex) ? barW(ex) : 0; }
+function updTot() {
+  var tl = document.querySelector('#totline'), kg = document.querySelector('#kg').value, b = curBar();
+  if (!tl) return;
+  if (b <= 0 || kg === '') { tl.hidden = true; return; }
+  tl.hidden = false;
+  tl.textContent = 'Gesamt: ' + fmt(Number(kg) + W(b)) + ' ' + UNIT + ' (Scheiben ' + fmt(Number(kg)) + ' + Stange ' + fmt(W(b)) + ')';
+}
+function renderBar() {
+  var row = document.querySelector('#barrow'), ex = document.querySelector('#exsel').value, lab = document.querySelector('#wlabel');
+  if (!row) return;
+  if (adding || !ex || !isBar(ex)) { row.hidden = true; lab.textContent = 'Gewicht (' + UNIT + ')'; updTot(); return; }
+  var w = barW(ex), opts = UNIT === 'lb' ? [0, 35, 45, 55] : [0, 10, 15, 20, 25], cur = UNIT === 'lb' ? Math.round(w * LBF) : w;
+  var chip = function (o, on) { return '<button type="button" class="bchip' + (on ? ' on' : '') + '" data-bar="' + o + '">' + (o ? o + ' ' + UNIT : 'Ohne') + '</button>'; };
+  row.innerHTML = '<div class="fld"><span>Hantelstange</span><div class="barchips">' + opts.map(function (o) { return chip(o, o === cur); }).join('') +
+    (opts.indexOf(cur) < 0 ? chip(cur, true) : '') + '<button type="button" class="bchip" data-bar="custom">…</button></div></div>';
+  row.hidden = false;
+  lab.textContent = w > 0 ? 'Scheiben (' + UNIT + ')' : 'Gewicht (' + UNIT + ')';
+  updTot();
+}
+function startBar() {
+  document.querySelector('#barrow').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-bar]'), ex = document.querySelector('#exsel').value; if (!b || !ex) return;
+    var v = b.dataset.bar;
+    if (v === 'custom') { v = prompt('Gewicht der Stange (' + UNIT + ')', UNIT === 'lb' ? Math.round(barW(ex) * LBF) : barW(ex)); if (v === null) return; v = Number(String(v).replace(',', '.')); if (!(v >= 0)) return; }
+    else v = Number(v);
+    barCfg[ex.toLowerCase()] = { on: true, w: toKg(v) }; saveBar(); renderBar();
+  });
+}
 // ---- Sprache (Deutsch/Englisch) und Farbschema ----
 var LANG = 'de', THEME = 'system', UNIT = 'kg', LBF = 2.20462;
 try { UNIT = localStorage.getItem('krafttraining-unit') === 'lb' ? 'lb' : 'kg'; } catch (e) {}
@@ -541,6 +585,7 @@ function applyUnit() {
   document.querySelector('#wlabel').textContent = 'Gewicht (' + UNIT + ')';
   document.querySelector('#wminus').dataset.step = 'kg:-' + st; document.querySelector('#wplus').dataset.step = 'kg:' + st;
   [].forEach.call(document.querySelectorAll('#unitseg button'), function (b) { b.classList.toggle('on', b.dataset.unit === UNIT); });
+  if (typeof renderBar === 'function') renderBar();
 }
 function setUnit(u) {
   var inp = document.querySelector('#kg'), v = inp.value === '' ? null : toKg(Number(String(inp.value).replace(',', '.')));
@@ -548,6 +593,7 @@ function setUnit(u) {
   if (v !== null && isFinite(v)) inp.value = W(v);
   applyUnit(); refreshAll();
 }
+function _barAfterUnit() { renderBar(); }
 try { LANG = localStorage.getItem('krafttraining-lang') || 'de'; THEME = localStorage.getItem('krafttraining-theme') || 'system'; } catch (e) {}
 var EN = Object.create(null);
 var DICT = `Training|Workout
@@ -670,6 +716,13 @@ Sicherung heruntergeladen.|Backup downloaded.
 CSV bereit.|CSV ready.
 Die Datei konnte nicht gelesen werden. Wähle eine Sicherung aus diesem Tracker.|The file could not be read. Choose a backup from this tracker.
 Pause|Rest
+Hantelstange|Barbell
+Ohne|None
+Scheiben (kg)|Plates (kg)
+Scheiben (lb)|Plates (lb)
+Langhantelübung|Barbell exercise
+Gewicht der Stange (kg)|Bar weight (kg)
+Gewicht der Stange (lb)|Bar weight (lb)
 Nutzer|Users
 Nutzer wechseln|Switch user
 + Neuer Nutzer|+ New user
@@ -733,6 +786,8 @@ DICT.split('\n').forEach(function (l) { var p = l.split('|'); EN[p[0]] = p[1]; }
 function tk(x) { return EN[x] || x; }
 var WDS = /\b(Mo|Di|Mi|Do|Fr|Sa|So)\b/g;
 var PAT = [
+  [/^Gesamt: (.+) (kg|lb) \(Scheiben (.+) \+ Stange (.+)\)$/, function (a, t, u, p, b) { return 'Total: ' + t + ' ' + u + ' (plates ' + p + ' + bar ' + b + ')'; }],
+  [/^inkl\. (.+) (kg|lb) Stange$/, function (a, w, u) { return 'incl. ' + w + ' ' + u + ' bar'; }],
   [/^Nutzer (\d+)$/, function (a, n) { return 'User ' + n; }],
   [/^Nutzer „(.+)“ und alle seine Daten löschen\?$/, function (a, n) { return 'Delete user “' + n + '” and all of their data?'; }],
   [/^(\d+) (?:Satz|Sätze) erfasst$/, function (a, n) { return n + (n === '1' ? ' set logged' : ' sets logged'); }],
@@ -871,6 +926,7 @@ function startI18n() {
   if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (THEME === 'system') markSegs(); });
   startDesign();
   startUsers();
+  startBar();
   applyTheme(); markSegs(); trAll(document.body);
   new MutationObserver(function (ms) {
     ms.forEach(function (m) {
@@ -965,7 +1021,7 @@ function groups() {
   return Object.keys(map).map(function (ex) {
     var asc = map[ex].slice().sort(function (a, b) { return a.date.localeCompare(b.date) || a.id - b.id; });
     var best = -Infinity;
-    var marked = asc.map(function (e) { var pr = e.kg > best; best = Math.max(best, e.kg); return { id: e.id, kg: e.kg, reps: e.reps, date: e.date, note: e.note || '', pr: pr }; });
+    var marked = asc.map(function (e) { var pr = e.kg > best; best = Math.max(best, e.kg); return { id: e.id, kg: e.kg, reps: e.reps, date: e.date, note: e.note || '', bar: e.bar || 0, pr: pr }; });
     var last = marked[marked.length - 1], prev = marked[marked.length - 2];
     var e1 = Math.max.apply(null, marked.map(function (e) { return e.reps === 1 ? e.kg : e.kg * (1 + e.reps / 30); }));
     var withG = asc.filter(function (e) { return cleanGrp(e.grp); });
@@ -1011,6 +1067,7 @@ function syncNew() {
   var pb = $('#plus'); pb.textContent = adding ? '×' : '+';
   pb.setAttribute('aria-label', adding ? 'Abbrechen' : 'Eigene Übung hinzufügen');
   updatePreview();
+  renderBar();
 }
 function currentEx() { return adding ? $('#exnew').value.trim() : $('#exsel').value; }
 
@@ -1024,7 +1081,7 @@ function card(g) {
   var next = g.last.reps >= 8 ? fmt(W(g.last.kg) + (UNIT === 'lb' ? 5 : 2.5)) + ' ' + UNIT : fmt(W(g.last.kg)) + ' ' + UNIT + ' × ' + (g.last.reps + 1);
   var assign = '';
   var hist = !isOpen ? '' : '<ul class="hist">' + g.desc.map(function (e) {
-    return '<li><span>' + day(e.date) + '</span><span>' + fmt(W(e.kg)) + ' ' + UNIT + ' × ' + e.reps + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span>' +
+    return '<li><span>' + day(e.date) + '</span><span>' + fmt(W(e.kg)) + ' ' + UNIT + ' × ' + e.reps + (e.bar ? '<small>inkl. ' + fmt(W(e.bar)) + ' ' + UNIT + ' Stange</small>' : '') + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</span>' +
       (e.pr ? '<span class="dot" title="Neue Bestleistung"></span>' : '<span></span>') +
       '<span><button class="del" data-edit="' + e.id + '">Ändern</button><button class="del" data-del="' + e.id + '" aria-label="Satz vom ' + day(e.date) + ' löschen">Löschen</button></span></li>';
   }).join('') + '</ul>';
@@ -1084,12 +1141,12 @@ function valid() {
   var kg = $('#kg').value, reps = $('#reps').value;
   return currentEx() && kg !== '' && Number(kg) >= 0 && Number(reps) >= 1 && $('#date').value;
 }
-function check() { $('#save').disabled = !valid(); }
+function check() { $('#save').disabled = !valid(); updTot(); }
 
 function prefill() {
   var ex = $('#exsel').value;
   var g = groups().filter(function (x) { return x.ex === ex; })[0];
-  if (g) { $('#kg').value = W(g.last.kg); $('#reps').value = g.last.reps; }
+  if (g) { $('#kg').value = W(Math.max(0, g.last.kg - (isBar(g.ex) ? barW(g.ex) : 0))); $('#reps').value = g.last.reps; }
   else { $('#kg').value = ''; $('#reps').value = ''; }
 }
 
@@ -1112,7 +1169,7 @@ $('#save').addEventListener('click', function () {
   var grp = $('#grp').value;
   if (match) { ex = match.ex; grp = match.grp; }
   var before = snap();
-  entries.push({ id: Date.now(), ex: ex, grp: grp, note: $('#note').value.trim(), kg: toKg(Number($('#kg').value)), reps: Number($('#reps').value), date: $('#date').value });
+  entries.push({ id: Date.now(), ex: ex, grp: grp, note: $('#note').value.trim(), kg: toKg(Number($('#kg').value)) + curBar(), bar: curBar(), reps: Number($('#reps').value), date: $('#date').value });
   save(); open = ex; gKey = grp; startRest(); levelUp(before);
   $('#note').value = '';
   $('#exnew').value = ''; adding = false;
@@ -1125,7 +1182,7 @@ $('#save').addEventListener('click', function () {
 function rowAction(t) {
   if (t.dataset.again) {
     var g = groups().filter(function (x) { return x.ex === t.dataset.again; })[0];
-    if (g) { var before = snap(); entries.push({ id: Date.now(), ex: g.ex, grp: g.grp, kg: g.last.kg, reps: g.last.reps, note: '', date: today() }); startRest(); levelUp(before); }
+    if (g) { var before = snap(); entries.push({ id: Date.now(), ex: g.ex, grp: g.grp, kg: g.last.kg, reps: g.last.reps, note: '', bar: g.last.bar || 0, date: today() }); startRest(); levelUp(before); }
   } else if (t.dataset.edit) {
     var id = Number(t.dataset.edit), e = entries.filter(function (x) { return x.id === id; })[0];
     if (!e) return;
@@ -1165,7 +1222,7 @@ $('#list').addEventListener('click', function (ev) {
 // Sichern: bevorzugt über das iOS-Teilen-Menü (z. B. "In Dateien sichern"), sonst als Download
 $('#export').addEventListener('click', function () {
   var name = 'krafttraining-' + today() + '.json';
-  var blob = new Blob([JSON.stringify({ entries: entries, plans: plans, customs: customs, hidden: Object.keys(hiddenCat) }, null, 2)], { type: 'application/json' });
+  var blob = new Blob([JSON.stringify({ entries: entries, plans: plans, customs: customs, hidden: Object.keys(hiddenCat), bars: barCfg }, null, 2)], { type: 'application/json' });
   var file; try { file = new File([blob], name, { type: 'application/json' }); } catch (e) {}
   if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
     navigator.share({ files: [file] }).then(function () { say('Sicherung bereit.'); }).catch(function () {});
@@ -1183,7 +1240,7 @@ $('#file').addEventListener('change', function () {
   rd.onload = function () {
     try {
       var data = JSON.parse(rd.result);
-      var np = data && data.plans, nc = data && data.customs, nh = data && data.hidden;
+      var np = data && data.plans, nc = data && data.customs, nh = data && data.hidden, nbar = data && data.bars;
       if (!Array.isArray(data)) data = data && data.entries;
       if (!Array.isArray(data)) throw 0;
       if (Array.isArray(np)) np.forEach(function (p) {
@@ -1194,12 +1251,13 @@ $('#file').addEventListener('change', function () {
         if (c && typeof c.ex === 'string' && !customs.some(function (x) { return x.ex.toLowerCase() === c.ex.toLowerCase(); })) customs.push({ ex: c.ex, grp: cleanGrp(c.grp) });
       });
       saveCustoms();
+      if (nbar && typeof nbar === 'object') { Object.keys(nbar).forEach(function (k) { if (!barCfg[k] && nbar[k] && typeof nbar[k] === 'object') barCfg[k] = { on: !!nbar[k].on, w: Number(nbar[k].w) >= 0 ? Number(nbar[k].w) : 20 }; }); saveBar(); }
       if (Array.isArray(nh)) { nh.forEach(function (h) { hiddenCat[String(h)] = 1; }); saveHidden(); }
       var ids = {}; entries.forEach(function (e) { ids[e.id] = 1; });
       var added = 0;
       data.forEach(function (e) {
         if (e && typeof e.ex === 'string' && isFinite(e.kg) && isFinite(e.reps) && typeof e.date === 'string' && !ids[e.id]) {
-          entries.push({ id: e.id || Date.now() + added, ex: e.ex, grp: cleanGrp(e.grp), note: String(e.note || ''), kg: Number(e.kg), reps: Number(e.reps), date: e.date });
+          entries.push({ id: e.id || Date.now() + added, ex: e.ex, grp: cleanGrp(e.grp), note: String(e.note || ''), bar: Number(e.bar) >= 0 ? Number(e.bar) : 0, kg: Number(e.kg), reps: Number(e.reps), date: e.date });
           ids[e.id] = 1; added++;
         }
       });
@@ -1409,7 +1467,7 @@ document.addEventListener('click', function (ev) {
   var p = b.dataset.step.split(':'), inp = $('#' + p[0]), v = Number(String(inp.value).replace(',', '.')) || 0;
   inp.value = Math.max(p[0] === 'reps' ? 1 : 0, Math.round((v + Number(p[1])) * 100) / 100); check();
 });
-var VERSION = '37';
+var VERSION = '38';
 // ---- Status: 10 Punkte je Satz, 30 extra je neue Bestleistung, im Gesamtstatus 25 je Trainingstag ----
 var LV = ['Einsteiger', 'Bronze', 'Silber', 'Gold', 'Platin', 'Diamant', 'Legende'];
 var TH_ALL = [0, 100, 300, 700, 1500, 3000, 6000], TH_GRP = [0, 50, 150, 350, 750, 1500, 3000];
@@ -1498,6 +1556,7 @@ function renderManage() {
       if (k === medit) {
         return '<div class="mrow ed"><label class="fld"><span>Name</span><input id="men" value="' + esc(k) + '" autocomplete="off"></label>' +
           '<label class="fld"><span>Muskelgruppe</span><select id="meg">' + grpOpts(mg) + '</select></label>' +
+          '<label class="chk"><input type="checkbox" id="mbar"' + (isBar(k) ? ' checked' : '') + '> Langhantelübung</label>' +
           '<div class="macts"><button class="primary" style="min-height:48px;font-size:16px" data-msave="1">Speichern</button><button class="mini" data-mcancel="1">Abbrechen</button>' +
           (hasSets(k) ? '' : '<button class="mini" data-mdel="' + esc(k) + '">Löschen</button>') + '</div></div>';
       }
@@ -1516,6 +1575,9 @@ function saveEx() {
       nn = t.ex; g = t.grp;
     }
   }
+  var oc = barCfg[old.toLowerCase()], mb = document.querySelector('#mbar'), on = mb ? mb.checked : isBar(old);
+  if (nn.toLowerCase() !== old.toLowerCase()) delete barCfg[old.toLowerCase()];
+  barCfg[nn.toLowerCase()] = { on: on, w: oc && oc.w != null ? oc.w : 20 }; saveBar();
   entries.forEach(function (e) { if (e.ex === old) { e.ex = nn; e.grp = g; } });
   customs = customs.filter(function (c) { return c.ex !== old; });
   var same = customs.filter(function (c) { return c.ex.toLowerCase() === nn.toLowerCase(); });
